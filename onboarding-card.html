@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Onboarding card</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --card: #fffdf8a8;
+      --hair: #ffffffe6;
+      --line: #1d1d1b17;
+      --ink: #1d1d1b;
+      --dim: #5c5a54;
+      --honey: #f6c343;
+      --honey-ink: #5a4306;
+      --night: #252523;
+      --night-2: #34332f;
+      --night-ink: #f4f2ec;
+      --night-dim: #a9a69c;
+      --grey: #b9b6ad;
+      --shadow: 0 1px 0 #fffc inset, 0 18px 40px -26px #3c321459;
+      --font-display: "Outfit", system-ui, sans-serif;
+      --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+      --back: cubic-bezier(.34, 1.7, .64, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      color: var(--ink);
+      font: 400 14px/1.45 var(--font-body);
+      -webkit-font-smoothing: antialiased;
+      background:
+        radial-gradient(90% 70% at 100% 100%, #f8d66e8c, #f8d66e00 70%),
+        radial-gradient(60% 50% at 88% 0%, #fae4a080, #fae4a000 70%),
+        linear-gradient(160deg, #f5f3ee, #f2efe6 55%, #fbeec0);
+    }
+
+    button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
+    h2, h3, p, ul { margin: 0; }
+    ul { padding: 0; list-style: none; }
+    :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+    .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .ico {
+      width: 18px; height: 18px; flex: none;
+      fill: none; stroke: currentColor; stroke-width: 1.7px;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    /* ---------- Card (a tall card: two bento rows in the original) ---------- */
+    .onb {
+      width: min(100%, 360px);
+      height: min(640px, calc(100dvh - 32px));
+      min-height: 480px;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 20px 14px;
+      border-radius: 28px;
+      background: var(--card);
+      box-shadow: var(--shadow), 0 0 0 1px var(--hair) inset;
+      overflow: hidden;
+    }
+
+    .card__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .card__title { font: 400 20px/1.2 var(--font-display); letter-spacing: -.01em; }
+    .big {
+      font: 300 38px/1 var(--font-display);
+      letter-spacing: -.02em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ---------- Phases ---------- */
+    .phases { display: grid; grid-template-columns: 1.25fr 1fr .8fr; gap: 6px; margin: 16px 0; }
+    .phase__pct {
+      display: block; margin-bottom: 6px; padding-left: 2px;
+      color: var(--dim); font-size: 11.5px; font-variant-numeric: tabular-nums;
+    }
+    .phase__bar {
+      position: relative;
+      display: flex; align-items: flex-end;
+      height: 46px;
+      border-radius: 12px;
+      background: #1d1d1b0f;
+      box-shadow: 0 0 0 1px var(--line) inset;
+      overflow: hidden;
+    }
+    .phase__fill {
+      position: absolute; inset: 0;
+      transform-origin: 0 50%;
+      transform: scaleX(var(--p, 0));
+      transition: transform .9s var(--ease);
+    }
+    .phase--honey .phase__fill { background: var(--honey); }
+    .phase--ink .phase__fill { background: var(--night); }
+    .phase--grey .phase__fill { background: var(--grey); }
+    .phase__name { position: relative; padding: 0 0 7px 9px; font-size: 11.5px; font-weight: 500; }
+    .phase--honey .phase__name { color: var(--honey-ink); }
+    .phase--ink .phase__name { color: #fff; mix-blend-mode: difference; }
+
+    /* ---------- Task stack ---------- */
+    .tasks { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+    .tasks__stack { height: 14px; margin: 0 14px -2px; border-radius: 18px 18px 0 0; background: #8f8c84; }
+    .tasks__card {
+      display: flex; flex-direction: column; flex: 1;
+      min-height: 220px;
+      padding: 18px 12px 12px 16px;
+      border-radius: 22px;
+      background: var(--night);
+      color: var(--night-ink);
+    }
+    .tasks__head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; padding-right: 6px; }
+    .tasks__head h3 { font: 400 17px/1.2 var(--font-display); }
+    .tasks__count { display: flex; font: 300 30px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+    .roll { display: inline-block; }
+
+    .tasks__list {
+      flex: 1; min-height: 0;
+      display: grid; align-content: start; gap: 4px;
+      padding-right: 4px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--night-2) transparent;
+      -webkit-mask-image: linear-gradient(#000 calc(100% - 26px), #0000);
+      mask-image: linear-gradient(#000 calc(100% - 26px), #0000);
+    }
+
+    .task {
+      display: flex; align-items: center; gap: 11px;
+      width: 100%;
+      padding: 7px 6px 7px 4px;
+      border-radius: 14px;
+      text-align: left;
+      transition: background-color .3s;
+    }
+    .task:hover { background: #ffffff0d; }
+    .task:focus-visible { outline-color: var(--honey); }
+
+    .task__ico {
+      width: 36px; height: 36px; flex: none;
+      display: grid; place-items: center;
+      border-radius: 50%;
+      background: #f1efe8; color: var(--night);
+      transition: background-color .35s, color .35s;
+    }
+    .task__txt { flex: 1; min-width: 0; display: grid; }
+    .task__title { position: relative; justify-self: start; font-size: 13px; transition: color .35s; }
+    .task__strike {
+      position: absolute; top: 52%; left: -1px; right: -1px;
+      height: 1.5px;
+      background: currentColor;
+      transform: scaleX(0);
+      transform-origin: 0 50%;
+      transition: transform .45s var(--ease);
+    }
+    .task__when { margin-top: 1px; color: var(--night-dim); font-size: 11px; }
+    .task__tick {
+      width: 22px; height: 22px; flex: none;
+      display: grid; place-items: center;
+      border-radius: 50%;
+      background: #4a4944; color: var(--night);
+      transition: background-color .3s;
+    }
+    .task__tick .ico { width: 14px; height: 14px; stroke-width: 2.6px; opacity: 0; }
+
+    .task[aria-pressed="true"] .task__ico { background: var(--night-2); color: var(--night-dim); }
+    .task[aria-pressed="true"] .task__title { color: var(--night-dim); }
+    .task[aria-pressed="true"] .task__strike { transform: scaleX(1); }
+    .task[aria-pressed="true"] .task__tick { background: var(--honey); }
+    .task[aria-pressed="true"] .task__tick .ico { opacity: 1; }
+
+    /* ---------- Toast ---------- */
+    .toast {
+      position: fixed; left: 0; right: 0; bottom: 26px; z-index: 30;
+      width: fit-content; max-width: calc(100vw - 32px); margin: 0 auto;
+      padding: 12px 18px; border-radius: 999px;
+      background: var(--night); color: var(--night-ink);
+      font-size: 13px; font-weight: 500;
+      box-shadow: 0 20px 40px -20px #0009;
+      opacity: 0; transform: translateY(18px) scale(.96);
+      pointer-events: none;
+      transition: opacity .3s, transform .45s var(--back);
+    }
+    .toast.is-on { opacity: 1; transform: none; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .phase__fill, .task__strike, .toast { transition: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m6.5 12.5 3.5 3.5 7.5-8"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="1.8"/><path d="M9.5 19.5h5M12 16v3.5"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5 13.5h6L10.5 21 19 10.5h-6L13 3Z"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3.5h6.5L18 8v12.5H7v-17Z"/><path d="M13 3.5V8.5h5M9.5 13h6M9.5 16.5h4"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="3.5"/><path d="m10.5 12.5 8-8M16 7l2.5 2.5M14 9l2 2"/></symbol>
+    <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="10" rx="1.6"/><path d="M3 18.5h18"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M6 20.5V4.5M6 5h10.5l-2 4 2 4H6"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M5 17.5V7.5A2.5 2.5 0 0 1 7.5 5h9A2.5 2.5 0 0 1 19 7.5v6a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.5v-2Z"/><path d="M9 10.5h.01M12 10.5h.01M15 10.5h.01"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1M14 10a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1"/></symbol>
+  </svg>
+
+  <!-- Each task's data-phase (0, 1, 2) maps it to Paperwork, Setup or Team. -->
+  <article class="onb" data-onboarding>
+    <header class="card__head">
+      <h2 class="card__title">Onboarding</h2>
+      <span class="big"><span data-pct>0</span>%</span>
+    </header>
+
+    <div class="phases">
+      <div class="phase phase--honey"><span class="phase__pct" data-phase-pct>0%</span><span class="phase__bar"><i class="phase__fill"></i><span class="phase__name">Paperwork</span></span></div>
+      <div class="phase phase--ink"><span class="phase__pct" data-phase-pct>0%</span><span class="phase__bar"><i class="phase__fill"></i><span class="phase__name">Setup</span></span></div>
+      <div class="phase phase--grey"><span class="phase__pct" data-phase-pct>0%</span><span class="phase__bar"><i class="phase__fill"></i><span class="phase__name">Team</span></span></div>
+    </div>
+
+    <div class="tasks">
+      <div class="tasks__stack" aria-hidden="true"></div>
+      <div class="tasks__card">
+        <header class="tasks__head">
+          <h3>Onboarding tasks</h3>
+          <p class="tasks__count" aria-live="polite"><span class="roll" data-done>0</span>/<span data-total>0</span></p>
+        </header>
+        <ul class="tasks__list">
+          <li><button class="task" type="button" aria-pressed="true" data-phase="0"><span class="task__ico"><svg class="ico"><use href="#i-monitor"/></svg></span><span class="task__txt"><span class="task__title">Intro interview<i class="task__strike"></i></span><span class="task__when">Sep 29, 08:30</span></span><span class="task__tick"><svg class="ico"><use href="#i-check"/></svg></span></button></li>
+          <li><button class="task" type="button" aria-pressed="true" data-phase="0"><span class="task__ico"><svg class="ico"><use href="#i-bolt"/></svg></span><span class="task__txt"><span class="task__title">Sign the offer<i class="task__strike"></i></span><span class="task__when">Sep 29, 10:30</span></span><span class="task__tick"><svg class="ico"><use href="#i-check"/></svg></span></button></li>
+          <li><button class="task" type="button" aria-pressed="false" data-phase="0"><span class="task__ico"><svg class="ico"><use href="#i-doc"/></svg></span><span class="task__txt"><span class="task__title">Tax &amp; bank forms<i class="task__strike"></i></span><span class="task__when">Sep 29, 13:00</span></span><span class="task__tick"><svg class="ico"><use href="#i-check"/></svg></span></button></li>
+          <li><button class="task" type="button" aria-pressed="false" data-phase="1"><span class="task__ico"><svg class="ico"><use href="#i-key"/></svg></span><span class="task__txt"><span class="task__title">Accounts &amp; access<i class="task__strike"></i></span><span class="task__when">Sep 30, 09:00</span></span><span class="task__tick"><svg class="ico"><use href="#i-check"/></svg></span></button></li>
+          <li><button class="task" type="button" aria-pressed="false" data-phase="1"><span class="task__ico"><svg class="ico"><use href="#i-laptop"/></svg></span><span class="task__txt"><span class="task__title">Laptop hand-off<i class="task__strike"></i></span><span class="task__when">Sep 30, 11:15</span></span><span class="task__tick"><svg class="ico"><use href="#i-check"/></svg></span></button></li>
+          <li><button class="task" type="button" aria-pressed="false" data-phase="1"><span class="task__ico"><svg class="ico"><use href="#i-flag"/></svg></span><span class="task__txt"><span class="task__title">Q4 goals draft<i class="task__strike"></i></span><span class="task__when">Oct 1, 14:45</span></span><span class="task__tick"><svg class="ico"><use href="#i-check"/></svg></span></button></li>
+          <li><button class="task" type="button" aria-pressed="false" data-phase="2"><span class="task__ico"><svg class="ico"><use href="#i-chat"/></svg></span><span class="task__txt"><span class="task__title">Coffee with the team<i class="task__strike"></i></span><span class="task__when">Oct 2, 10:00</span></span><span class="task__tick"><svg class="ico"><use href="#i-check"/></svg></span></button></li>
+          <li><button class="task" type="button" aria-pressed="false" data-phase="2"><span class="task__ico"><svg class="ico"><use href="#i-link"/></svg></span><span class="task__txt"><span class="task__title">Handbook walkthrough<i class="task__strike"></i></span><span class="task__when">Oct 2, 16:30</span></span><span class="task__tick"><svg class="ico"><use href="#i-check"/></svg></span></button></li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+  <div class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+  (() => {
+    const root = document.querySelector('[data-onboarding]');
+    if (!root) return;
+
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    const tasks = [...root.querySelectorAll('.task')];
+    const phases = [...root.querySelectorAll('.phase')];
+    const doneEl = root.querySelector('[data-done]');
+    const pctEl = root.querySelector('[data-pct]');
+    const toast = document.querySelector('.toast');
+    const isDone = (t) => t.getAttribute('aria-pressed') === 'true';
+
+    root.querySelector('[data-total]').textContent = tasks.length;
+
+    /* ---- Helpers ---- */
+    // Counts from whatever the element last showed to `to`.
+    function countTo(el, to, { dur = 800, suffix = '' } = {}) {
+      const from = el._v ?? 0;
+      const show = (v) => { el.textContent = Math.round(v) + suffix; };
+      cancelAnimationFrame(el._raf);
+      if (reduce.matches || !dur || from === to) { el._v = to; return show(to); }
+      const t0 = performance.now();
+      el._raf = requestAnimationFrame(function step(now) {
+        const p = Math.min(1, (now - t0) / dur);
+        el._v = from + (to - from) * (1 - Math.pow(1 - p, 3));
+        show(el._v);
+        if (p < 1) el._raf = requestAnimationFrame(step);
+      });
+    }
+
+    // Slides the old number out and the new one in, up when it grows.
+    function roll(el, value, up) {
+      el._target = value;
+      if (reduce.matches) { el.textContent = value; return; }
+      el.getAnimations().forEach((a) => a.cancel());
+      const out = el.animate(
+        [{ transform: 'none', opacity: 1 }, { transform: `translateY(${up ? -80 : 80}%)`, opacity: 0 }],
+        { duration: 180, easing: 'ease-in', fill: 'forwards' }
+      );
+      out.onfinish = () => {
+        el.textContent = el._target;
+        out.cancel();
+        el.animate(
+          [{ transform: `translateY(${up ? 80 : -80}%)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
+          { duration: 400, easing: 'cubic-bezier(.34,2,.64,1)' }
+        );
+      };
+      out.oncancel = () => { el.textContent = el._target; };
+    }
+
+    // A small ring of dots that bursts from an element.
+    function burst(from) {
+      if (reduce.matches) return;
+      const r = from.getBoundingClientRect();
+      for (let i = 0; i < 14; i++) {
+        const dot = document.createElement('i');
+        const size = 4 + Math.random() * 5;
+        Object.assign(dot.style, {
+          position: 'fixed', zIndex: 40, pointerEvents: 'none', borderRadius: '50%',
+          left: `${r.left + r.width / 2}px`, top: `${r.top + r.height / 2}px`,
+          width: `${size}px`, height: `${size}px`,
+          background: i % 3 ? 'var(--honey)' : 'var(--night-ink)',
+        });
+        document.body.append(dot);
+        const a = (i / 14) * Math.PI * 2 + Math.random() * 0.4;
+        const d = 30 + Math.random() * 40;
+        const x = Math.cos(a) * d, y = Math.sin(a) * d;
+        dot.animate(
+          [
+            { transform: 'translate(0,0) scale(1)', opacity: 1 },
+            { transform: `translate(${x}px, ${y}px) scale(1)`, opacity: 1, offset: 0.5, easing: 'ease-in' },
+            { transform: `translate(${x}px, ${y + 18}px) scale(.3)`, opacity: 0 },
+          ],
+          { duration: 850, easing: 'cubic-bezier(.22,1,.36,1)' }
+        ).onfinish = () => dot.remove();
+      }
+    }
+
+    let toastTimer;
+    function say(msg) {
+      toast.textContent = msg;
+      toast.classList.add('is-on');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('is-on'), 2600);
+    }
+
+    /* ---- Sync counts, percentages and phase bars to the ticked tasks ---- */
+    let lastDone = tasks.filter(isDone).length;
+    doneEl.textContent = lastDone;
+
+    function update(animate = true) {
+      const done = tasks.filter(isDone).length;
+      if (animate && done !== lastDone) roll(doneEl, done, done > lastDone);
+      else doneEl.textContent = done;
+      lastDone = done;
+
+      const dur = animate ? 800 : 0;
+      countTo(pctEl, Math.round((done / tasks.length) * 100), { dur });
+
+      phases.forEach((phase, n) => {
+        const own = tasks.filter((t) => +t.dataset.phase === n);
+        const p = own.length ? own.filter(isDone).length / own.length : 0;
+        phase.querySelector('.phase__fill').style.setProperty('--p', p.toFixed(3));
+        countTo(phase.querySelector('[data-phase-pct]'), Math.round(p * 100), { dur, suffix: '%' });
+      });
+      return done;
+    }
+
+    tasks.forEach((task) => task.addEventListener('click', () => {
+      const on = !isDone(task);
+      task.setAttribute('aria-pressed', String(on));
+      const allDone = tasks.every(isDone);
+
+      if (on && !reduce.matches) {
+        task.querySelector('.task__tick').animate(
+          [{ transform: 'scale(.4)' }, { transform: 'scale(1)' }],
+          { duration: 600, easing: 'cubic-bezier(.34,2.2,.64,1)' }
+        );
+        task.querySelector('.task__ico').animate(
+          [{ transform: 'rotate(-12deg)' }, { transform: 'rotate(6deg)' }, { transform: 'rotate(-2deg)' }, { transform: 'rotate(0)' }],
+          { duration: 700, easing: 'ease-out' }
+        );
+        if (!allDone) burst(task.querySelector('.task__tick'));
+      }
+
+      update();
+
+      if (on && allDone) {
+        burst(root.querySelector('.tasks__count'));
+        say('Onboarding complete — welcome aboard');
+      }
+    }));
+
+    /* ---- Load-in: tasks slide in, phase bars fill, percentages count up ---- */
+    if (!reduce.matches) {
+      tasks.forEach((task, i) => {
+        task.parentElement.animate(
+          [{ opacity: 0, transform: 'translateX(18px)' }, { opacity: 1, transform: 'none' }],
+          { duration: 550, delay: 150 + i * 60, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'backwards' }
+        );
+      });
+    }
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const dur = 1200;
+      const done = tasks.filter(isDone).length;
+      countTo(pctEl, Math.round((done / tasks.length) * 100), { dur });
+      phases.forEach((phase, n) => {
+        const own = tasks.filter((t) => +t.dataset.phase === n);
+        const p = own.length ? own.filter(isDone).length / own.length : 0;
+        phase.querySelector('.phase__fill').style.setProperty('--p', p.toFixed(3));
+        countTo(phase.querySelector('[data-phase-pct]'), Math.round(p * 100), { dur, suffix: '%' });
+      });
+    }));
+  })();
+  </script>
+</body>
+</html>

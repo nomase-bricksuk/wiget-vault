@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Week calendar card</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --card: #fffdf8a8;
+      --card-2: #fffdf8db;
+      --solid: #f9f7f1;
+      --hair: #ffffffe6;
+      --line: #1d1d1b17;
+      --line-2: #1d1d1b29;
+      --ink: #1d1d1b;
+      --dim: #5c5a54;
+      --faint: #75726a;
+      --honey: #f6c343;
+      --honey-2: #fbe29a;
+      --night: #252523;
+      --night-ink: #f4f2ec;
+      --shadow: 0 1px 0 #fffc inset, 0 18px 40px -26px #3c321459;
+      --font-display: "Outfit", system-ui, sans-serif;
+      --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+      --back: cubic-bezier(.34, 1.7, .64, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      color: var(--ink);
+      font: 400 14px/1.45 var(--font-body);
+      -webkit-font-smoothing: antialiased;
+      background:
+        radial-gradient(90% 70% at 100% 100%, #f8d66e8c, #f8d66e00 70%),
+        radial-gradient(60% 50% at 88% 0%, #fae4a080, #fae4a000 70%),
+        linear-gradient(160deg, #f5f3ee, #f2efe6 55%, #fbeec0);
+    }
+
+    button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
+    h2, p { margin: 0; }
+    :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+    .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .ico {
+      width: 18px; height: 18px; flex: none;
+      fill: none; stroke: currentColor; stroke-width: 1.7px;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    /* ---------- Card (two bento columns wide in the original) ---------- */
+    .wk {
+      width: min(100%, 760px);
+      min-height: 360px;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 18px 18px;
+      border-radius: 28px;
+      background: var(--card);
+      box-shadow: var(--shadow), 0 0 0 1px var(--hair) inset;
+      overflow: hidden;
+    }
+
+    .cal__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .cal__title { font: 400 17px/1 var(--font-display); }
+
+    .pill-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: var(--card-2);
+      box-shadow: 0 0 0 1px var(--line) inset;
+      font-size: 12px; font-weight: 500;
+    }
+    .pill-btn .ico { width: 14px; height: 14px; }
+    .pill-btn:disabled { opacity: .4; cursor: default; }
+
+    /* ---------- Grid: time column + 6 days, header row + 8 half-hour rows ---------- */
+    .cal {
+      position: relative;
+      flex: 1;
+      display: grid;
+      grid-template-columns: 58px repeat(6, minmax(0, 1fr));
+      grid-template-rows: auto repeat(8, minmax(15px, 1fr));
+    }
+
+    .cal__day { grid-row: 1; padding: 6px 0 10px; text-align: center; }
+    .cal__dname { display: block; color: var(--faint); font-size: 12px; }
+    .cal__dnum { display: block; color: var(--faint); font: 300 17px/1.3 var(--font-display); }
+    .cal__day.is-today .cal__dname { color: var(--ink); font-weight: 600; }
+    .cal__day.is-today .cal__dnum {
+      display: inline-grid; place-items: center;
+      width: 30px; height: 30px; margin-top: 2px;
+      border-radius: 50%;
+      background: var(--night); color: var(--night-ink);
+    }
+
+    .cal__col { grid-row: 2 / -1; border-left: 1px dashed var(--line-2); }
+    .cal__time {
+      grid-column: 1; align-self: start;
+      color: var(--dim); font-size: 11.5px; white-space: nowrap;
+      transform: translateY(-.55em);
+    }
+    .cal__rule { grid-column: 2 / -1; align-self: start; border-top: 1px solid #1d1d1b0d; }
+
+    /* Events */
+    .ev {
+      position: relative; z-index: 1;
+      display: flex; align-items: center; gap: 10px;
+      min-width: 0;
+      margin: 2px 4px;
+      padding: 7px 10px;
+      border-radius: 12px;
+      background: var(--solid);
+      box-shadow: 0 0 0 1px var(--line) inset, 0 10px 20px -16px #281e0a99;
+      text-align: left;
+      container-type: inline-size;
+      transition: box-shadow .3s var(--ease);
+    }
+    .ev:hover { box-shadow: 0 0 0 1px var(--line-2) inset, 0 14px 24px -16px #281e0ab3; }
+    .ev--dark { background: var(--night); color: var(--night-ink); box-shadow: 0 10px 20px -14px #000000b3; }
+    .ev--honey { background: var(--honey-2); box-shadow: inset 0 0 0 1px #a0781433; }
+
+    .ev__txt { flex: 1; min-width: 0; display: grid; }
+    .ev__txt b, .ev__txt small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .ev__txt b { font-size: 12.5px; font-weight: 500; }
+    .ev__txt small { font-size: 11px; opacity: .7; }
+
+    .avatars { display: flex; flex: none; }
+    @container (width <= 190px) { .ev .avatars { display: none; } }
+
+    .avatar {
+      position: relative;
+      display: inline-grid; place-items: center; flex: none;
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      background: var(--av, #d8cfbd);
+      box-shadow: 0 0 0 2px var(--solid);
+      overflow: hidden;
+    }
+    .avatar + .avatar { margin-left: -7px; }
+    .avatar svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .ev--dark .avatar { box-shadow: 0 0 0 2px var(--night); }
+    .ev--honey .avatar { box-shadow: 0 0 0 2px var(--honey-2); }
+
+    /* Now line */
+    .cal__now { position: relative; z-index: 2; grid-column: 2 / -1; align-self: stretch; pointer-events: none; transform-origin: 0 50%; }
+    .cal__now::after {
+      content: ""; position: absolute; left: 0; right: 0;
+      top: calc(var(--f) * 100%);
+      border-top: 1.5px solid var(--honey);
+    }
+    .cal__now::before {
+      content: ""; position: absolute; left: -4px;
+      top: calc(var(--f) * 100% - 3.5px);
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--honey);
+      box-shadow: 0 0 0 3px #f6c3434d;
+    }
+
+    .cal__empty { grid-area: 3 / 2 / 7 / -1; place-self: center; color: var(--faint); font-size: 13px; }
+
+    /* ---------- Toast ---------- */
+    .toast {
+      position: fixed; left: 0; right: 0; bottom: 26px; z-index: 30;
+      width: fit-content; max-width: calc(100vw - 32px); margin: 0 auto;
+      padding: 12px 18px; border-radius: 999px;
+      background: var(--night); color: var(--night-ink);
+      font-size: 13px; font-weight: 500;
+      box-shadow: 0 20px 40px -20px #0009;
+      opacity: 0; transform: translateY(18px) scale(.96);
+      pointer-events: none;
+      transition: opacity .3s, transform .45s var(--back);
+    }
+    .toast.is-on { opacity: 1; transform: none; }
+
+    /* ---------- Phones: the week scrolls sideways, times stay pinned ---------- */
+    @media (max-width: 640px) {
+      .wk { background: var(--solid); }
+      .cal {
+        grid-template-columns: 50px repeat(6, minmax(96px, 1fr));
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scroll-snap-type: x mandatory;
+        scroll-padding-left: 50px;
+        scrollbar-width: none;
+        -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), #0000);
+        mask-image: linear-gradient(90deg, #000 calc(100% - 28px), #0000);
+      }
+      .cal::-webkit-scrollbar { display: none; }
+      .cal__day { scroll-snap-align: start; }
+      .cal__time { position: sticky; left: 0; z-index: 3; padding-right: 6px; background: var(--solid); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .toast { transition: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m14 7-5 5 5 5"/></symbol>
+    <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m10 7 5 5-5 5"/></symbol>
+  </svg>
+
+  <article class="wk" data-calendar>
+    <header class="cal__head">
+      <button class="pill-btn" type="button" data-prev><svg class="ico"><use href="#i-chev-l"/></svg><span data-prev-lab></span></button>
+      <h2 class="cal__title" data-title></h2>
+      <button class="pill-btn" type="button" data-next><span data-next-lab></span><svg class="ico"><use href="#i-chev-r"/></svg></button>
+    </header>
+    <div class="cal" aria-live="polite"></div>
+  </article>
+
+  <div class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+  (() => {
+    const root = document.querySelector('[data-calendar]');
+    if (!root) return;
+
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+
+    /* ---------- Data ---------- */
+    const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const TIMES = ['8:00 am', '9:00 am', '10:00 am', '11:00 am']; // each spans two half-hour rows
+
+    // People referenced by events' `who` (index into this list).
+    const PEOPLE = [
+      { name: 'Mira Okafor', av: '#e9c98f', look: { skin: '#b27a55', hair: 'curly', hc: '#1d1512', shirt: '#e2d6c4' } },
+      { name: 'Jonah Reyes', av: '#c9d6c1', look: { skin: '#c68a5e', hair: 'short', hc: '#1f1a17', shirt: '#6f7550', beard: 1 } },
+      { name: 'Lena Park', av: '#e6c3b4', look: { skin: '#efcaa6', hair: 'long', hc: '#1b1716', shirt: '#cdb48e' } },
+      { name: 'Theo Brandt', av: '#cfd3de', look: { skin: '#f1cdae', hair: 'short', hc: '#c29a5f', shirt: '#9aa0a6', glasses: 1 } },
+      { name: 'Amara Nwosu', av: '#f0d58a', look: { skin: '#6e4428', hair: 'afro', hc: '#1c1512', shirt: '#d9a531' } },
+      { name: 'Sofia Marin', av: '#dcc6e0', look: { skin: '#e3b287', hair: 'pony', hc: '#4a2e1f', shirt: '#f7f3ea' } },
+      { name: 'Kai Tanaka', av: '#bfd9d6', look: { skin: '#ecc59b', hair: 'short', hc: '#161313', shirt: '#2f3a56' } },
+      { name: 'Ines Duarte', av: '#efc9a6', look: { skin: '#f0c5a0', hair: 'bob', hc: '#8a3b22', shirt: '#efe3cc' } },
+      { name: 'Omar Haddad', av: '#d9d0bd', look: { skin: '#c48c63', hair: 'short', hc: '#231a15', shirt: '#4a4a48', beard: 1 } },
+      { name: 'Freya Lund', av: '#c8d4e6', look: { skin: '#f5d5ba', hair: 'bun', hc: '#d9b977', shirt: '#a8b89a', glasses: 1 } },
+    ];
+
+    // day: 0–5 (Mon–Sat) · span: days wide · slot: half-hour row from 8:00 · len: rows tall
+    // today: day index with the dark date · now: rows from 8:00 for the now line (3.33 ≈ 9:40)
+    const WEEKS = [
+      {
+        title: 'Sep 21 – 26', days: [21, 22, 23, 24, 25, 26],
+        events: [
+          { day: 1, span: 1, slot: 2, len: 2, title: 'Design crit', sub: 'Pricing page v3', tone: 'dark', who: [0, 5] },
+          { day: 3, span: 2, slot: 5, len: 2, title: 'Payroll close', sub: 'September run', tone: 'honey', who: [4] },
+        ],
+      },
+      {
+        title: 'Sep 28 – Oct 3', days: [28, 29, 30, 1, 2, 3], today: 1, now: 3.33,
+        events: [
+          { day: 1, span: 2, slot: 0, len: 2, title: 'Weekly team sync', sub: 'Priorities for the sprint', tone: 'dark', who: [4, 2, 6] },
+          { day: 2, span: 2, slot: 4, len: 2, title: 'Onboarding session', sub: 'Welcome Jonah & Theo', tone: '', who: [1, 3] },
+          { day: 4, span: 2, slot: 2, len: 2, title: '1:1 with Mira', sub: 'Growth plan', tone: 'honey', who: [0] },
+        ],
+      },
+      {
+        title: 'Oct 5 – 10', days: [5, 6, 7, 8, 9, 10],
+        events: [
+          { day: 1, span: 3, slot: 0, len: 2, title: 'Q4 kickoff', sub: 'All hands · Studio', tone: 'dark', who: [4, 0, 8] },
+          { day: 3, span: 2, slot: 5, len: 2, title: 'Offsite planning', sub: 'Porto, November', tone: '', who: [7, 9] },
+        ],
+      },
+    ];
+    const EDGE_LABELS = { before: 'Sep 14', after: 'Oct 12' };
+    let current = 1;
+
+    /* ---------- Illustrated avatars ---------- */
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const dots = (c, list) => list.map(([x, y, r]) => `<circle fill="${c}" cx="${x}" cy="${y}" r="${r}"/>`).join('');
+    const HAIR = {
+      long: (c) => `<path fill="${c}" d="M18.5 29c0-9.5 6-15.5 13.5-15.5S45.5 19.5 45.5 29v15.5c0 2-3.5 3-6 1.8V31h-15v15.3c-2.5 1.2-6 .2-6-1.8z"/>`,
+      bob: (c) => `<path fill="${c}" d="M19 29c0-9.5 6-15.5 13-15.5S45 19.5 45 29v8.5c0 1.8-2.4 2.6-4.5 1.8H23.5c-2.1.8-4.5 0-4.5-1.8z"/>`,
+      afro: (c) => `<circle fill="${c}" cx="32" cy="24.5" r="15.5"/>`,
+      curly: (c) => dots(c, [[21, 22, 5.5], [26.5, 16.5, 6], [33, 15, 6.5], [39.5, 17.5, 6], [43.5, 23.5, 5.5], [19.5, 29.5, 4.6], [44.5, 30, 4.6], [19.5, 36, 4.3], [44.5, 36.5, 4.3]]),
+      pony: (c) => `<ellipse fill="${c}" cx="44.5" cy="33" rx="3.4" ry="7.5" transform="rotate(-12 44.5 33)"/>`,
+      bun: (c) => `<circle fill="${c}" cx="32" cy="13" r="5.2"/>`,
+    };
+    const fringe = (c) => `<path fill="${c}" d="M20.6 28.5c0-8.2 5-13.3 11.4-13.3s11.4 5.1 11.4 13.3c-2.2-4.4-5.6-6.6-11.4-6.6s-9.2 2.2-11.4 6.6z"/>`;
+
+    function face(l) {
+      return `<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+        <rect width="64" height="64" fill="var(--av)"/>
+        ${HAIR[l.hair]?.(l.hc) || ''}
+        <path fill="${l.shirt}" d="M11 64c0-12 8.5-19.5 21-19.5S53 52 53 64z"/>
+        <path fill="${l.skin}" d="M28 37h8v8.5c0 2.2-1.8 3.5-4 3.5s-4-1.3-4-3.5z"/>
+        <path fill="#000" opacity=".12" d="M28 40.5c2.6 1.4 5.4 1.4 8 0V37h-8z"/>
+        <circle fill="${l.skin}" cx="32" cy="29" r="11"/>
+        ${['afro', 'curly'].includes(l.hair) ? '' : fringe(l.hc)}
+        ${l.beard ? `<path fill="${l.hc}" opacity=".85" d="M21.3 30.5c.8 6.8 4.8 10 10.7 10s9.9-3.2 10.7-10c-2.3 2.6-5.2 3.8-10.7 3.8s-8.4-1.2-10.7-3.8z"/>` : ''}
+        <circle fill="#2a211b" cx="27.6" cy="29.6" r="1.25"/><circle fill="#2a211b" cx="36.4" cy="29.6" r="1.25"/>
+        <path fill="none" stroke="#2a211b" stroke-width="1.3" stroke-linecap="round" d="M28.8 34.2q3.2 2.6 6.4 0"/>
+        ${l.glasses ? '<g fill="none" stroke="#3b2b20" stroke-width="1.1"><circle cx="27.6" cy="29.6" r="3.3"/><circle cx="36.4" cy="29.6" r="3.3"/><path d="M30.9 29.4h2.2"/></g>' : ''}
+      </svg>`;
+    }
+    const avatar = (i) => `<span class="avatar" style="--av:${PEOPLE[i].av}" title="${esc(PEOPLE[i].name)}">${face(PEOPLE[i].look)}</span>`;
+
+    /* ---------- Build ---------- */
+    const cal = root.querySelector('.cal');
+    const titleEl = root.querySelector('[data-title]');
+    const prevBtn = root.querySelector('[data-prev]');
+    const nextBtn = root.querySelector('[data-next]');
+    const toast = document.querySelector('.toast');
+
+    // Static scaffolding: hour labels, hour rules and day columns.
+    cal.innerHTML =
+      TIMES.map((t, i) => `<span class="cal__time" style="grid-row:${2 + i * 2}">${t}</span><i class="cal__rule" style="grid-row:${2 + i * 2}"></i>`).join('') +
+      DAY_NAMES.map((_, i) => `<i class="cal__col" style="grid-column:${2 + i}"></i>`).join('');
+
+    // Per-week content is tagged .cal__dyn so it can be swapped.
+    function renderWeek(index) {
+      const w = WEEKS[index];
+      cal.querySelectorAll('.cal__dyn').forEach((el) => el.remove());
+
+      const html =
+        w.days.map((d, i) => `<div class="cal__day cal__dyn${w.today === i ? ' is-today' : ''}" style="grid-column:${2 + i}">
+            <span class="cal__dname">${DAY_NAMES[i]}</span><span class="cal__dnum">${d}</span></div>`).join('') +
+        w.events.map((e, i) => {
+          const names = e.who.map((p) => PEOPLE[p].name).join(', ');
+          return `<button class="ev cal__dyn${e.tone ? ' ev--' + e.tone : ''}" type="button" data-ev="${i}"
+              aria-label="${esc(e.title)}, ${esc(e.sub)}. With ${esc(names)}"
+              style="grid-column:${2 + e.day} / span ${e.span}; grid-row:${2 + e.slot} / span ${e.len}">
+              <span class="ev__txt"><b>${esc(e.title)}</b><small>${esc(e.sub)}</small></span>
+              <span class="avatars">${e.who.map(avatar).join('')}</span></button>`;
+        }).join('') +
+        (w.now == null ? '' : `<i class="cal__now cal__dyn" style="grid-row:${2 + Math.floor(w.now)}; --f:${(w.now % 1).toFixed(2)}"></i>`) +
+        (w.events.length ? '' : '<p class="cal__empty cal__dyn">A quiet week.</p>');
+
+      cal.insertAdjacentHTML('beforeend', html);
+
+      titleEl.textContent = w.title;
+      prevBtn.disabled = index === 0;
+      nextBtn.disabled = index === WEEKS.length - 1;
+      root.querySelector('[data-prev-lab]').textContent = index > 0 ? WEEKS[index - 1].title.split(' – ')[0] : EDGE_LABELS.before;
+      root.querySelector('[data-next-lab]').textContent = index < WEEKS.length - 1 ? WEEKS[index + 1].title.split(' – ')[0] : EDGE_LABELS.after;
+      prevBtn.setAttribute('aria-label', `Previous week, ${prevBtn.textContent.trim()}`);
+      nextBtn.setAttribute('aria-label', `Next week, ${nextBtn.textContent.trim()}`);
+    }
+
+    /* ---------- Motion ---------- */
+    const EASE = 'cubic-bezier(.22,1,.36,1)';
+
+    // dir: -1 / 1 when paging, 0 on first load.
+    function enter(dir = 0) {
+      if (reduce.matches) return;
+      titleEl.animate(
+        [{ transform: `translateX(${dir * 26}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
+        { duration: 450, easing: EASE }
+      );
+      cal.querySelectorAll('.cal__day').forEach((d, i) => d.animate(
+        [{ transform: `translate(${dir * 26}px, ${dir ? 0 : 10}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
+        { duration: 500, delay: i * 35, easing: EASE, fill: 'backwards' }
+      ));
+      cal.querySelectorAll('.ev').forEach((ev, i) => ev.animate(
+        [{ transform: 'translateY(14px) scale(.94)', opacity: 0 }, { transform: 'none', opacity: 1 }],
+        { duration: 600, delay: 150 + i * 80, easing: 'cubic-bezier(.34,1.7,.64,1)', fill: 'backwards' }
+      ));
+      cal.querySelector('.cal__now')?.animate(
+        [{ transform: 'scaleX(0)' }, { transform: 'none' }],
+        { duration: 900, delay: 300, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'backwards' }
+      );
+    }
+
+    let busy = false;
+    async function shift(dir) {
+      const next = current + dir;
+      if (busy || next < 0 || next >= WEEKS.length) return;
+      busy = true;
+
+      if (!reduce.matches) {
+        const leaving = [titleEl, ...cal.querySelectorAll('.cal__dyn')];
+        await Promise.all(leaving.map((el, i) => el.animate(
+          [{ transform: 'none', opacity: 1 }, { transform: `translateX(${-dir * 26}px)`, opacity: 0 }],
+          { duration: 220, delay: i * 12, easing: 'ease-in', fill: 'forwards' }
+        ).finished));
+        titleEl.getAnimations().forEach((a) => a.cancel()); // the title is reused, so drop its held state
+      }
+
+      current = next;
+      renderWeek(current);
+      enter(dir);
+      busy = false;
+    }
+
+    prevBtn.addEventListener('click', () => shift(-1));
+    nextBtn.addEventListener('click', () => shift(1));
+
+    // Keyboard paging when focus is inside the card.
+    root.addEventListener('keydown', (e) => {
+      if (e.target.closest('input, textarea')) return;
+      if (e.key === 'ArrowLeft' && e.altKey) { e.preventDefault(); shift(-1); }
+      if (e.key === 'ArrowRight' && e.altKey) { e.preventDefault(); shift(1); }
+    });
+
+    let toastTimer;
+    function say(msg) {
+      toast.textContent = msg;
+      toast.classList.add('is-on');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('is-on'), 2600);
+    }
+
+    cal.addEventListener('click', (e) => {
+      const ev = e.target.closest('.ev');
+      if (!ev) return;
+      const data = WEEKS[current].events[+ev.dataset.ev];
+      if (!reduce.matches) {
+        ev.animate([{ transform: 'scale(.96)' }, { transform: 'scale(1)' }], { duration: 500, easing: 'cubic-bezier(.34,2.2,.64,1)' });
+      }
+      say(`${data.title} · ${data.sub}`);
+    });
+
+    renderWeek(current);
+    enter(0);
+  })();
+  </script>
+</body>
+</html>
