@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Activity heatmap</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --card: #fffdf8a8;
+      --card-2: #fffdf8db;
+      --hair: #ffffffe6;
+      --line: #1d1d1b17;
+      --line-2: #1d1d1b29;
+      --ink: #1d1d1b;
+      --dim: #5c5a54;
+      --faint: #75726a;
+      --honey: #f6c343;
+      --honey-ink: #5a4306;
+      --night: #252523;
+      --night-ink: #f4f2ec;
+      --night-dim: #a9a69c;
+      --shadow: 0 1px 0 #fffc inset, 0 18px 40px -26px #3c321459;
+      --font-display: "Outfit", system-ui, sans-serif;
+      --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+
+      /* Status colours, as in status-tracker.html */
+      --st-active: var(--honey);
+      --st-focus: var(--night);
+      --st-meeting: #df8b52;
+      --st-away: #b9b6ad;
+      --st-offline: #e2ddd1;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      place-items: center;
+      padding: 16px;
+      color: var(--ink);
+      font: 400 14px/1.45 var(--font-body);
+      -webkit-font-smoothing: antialiased;
+      background:
+        radial-gradient(90% 70% at 100% 100%, #f8d66e8c, #f8d66e00 70%),
+        radial-gradient(60% 50% at 88% 0%, #fae4a080, #fae4a000 70%),
+        linear-gradient(160deg, #f5f3ee, #f2efe6 55%, #fbeec0);
+    }
+
+    button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
+    h2, p, dl, dd { margin: 0; }
+    :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+    /* ---------- Card ---------- */
+    .hm-card {
+      position: relative;
+      width: min(100%, 900px);
+      padding: 20px;
+      border-radius: 28px;
+      background: var(--card);
+      box-shadow: var(--shadow), 0 0 0 1px var(--hair) inset;
+    }
+
+    .hm__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+    .card__title { font: 400 20px/1.2 var(--font-display); letter-spacing: -.01em; }
+    .hm__controls { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    /* Segmented controls with a sliding pill */
+    .seg-ctl {
+      position: relative;
+      display: flex; gap: 2px;
+      padding: 3px;
+      border-radius: 999px;
+      background: var(--card-2);
+      box-shadow: 0 0 0 1px var(--hair) inset, 0 0 0 1px var(--line);
+    }
+    .seg-ctl__pill {
+      position: absolute; top: 3px; bottom: 3px; left: 0; width: 0;
+      border-radius: 999px;
+      background: var(--night);
+      transition: transform .45s var(--ease), width .45s var(--ease);
+    }
+    .seg-ctl button {
+      position: relative; z-index: 1;
+      padding: 7px 13px;
+      border-radius: 999px;
+      color: var(--dim);
+      font-size: 12.5px; font-weight: 500;
+      transition: color .35s var(--ease);
+    }
+    .seg-ctl button:hover { color: var(--ink); }
+    .seg-ctl button[aria-checked="true"] { color: var(--night-ink); }
+
+    /* ---------- Stats ---------- */
+    .hm__stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .stat { display: grid; grid-template-areas: "num" "lab"; align-content: start; }
+    .stat__num { grid-area: num; font: 300 32px/1 var(--font-display); letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .stat__num small { margin-left: 3px; color: var(--dim); font-size: 15px; }
+    .stat__lab { grid-area: lab; margin-top: 6px; color: var(--dim); font-size: 12px; }
+
+    /* ---------- Heatmap ---------- */
+    .hm__scroll { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; padding-bottom: 4px; }
+    .hm {
+      --cell: 14px;
+      --gap: 3px;
+      display: grid;
+      gap: var(--gap);
+      width: max-content;
+      margin: 0 auto;
+    }
+    /* Ramps per measure (level 1 → 4), on the card so the legend shares them */
+    .hm-card { --l1: #f8e8b8; --l2: #f7d878; --l3: #f6c343; --l4: #c99412; }
+    .hm-card[data-metric="focus"] { --l1: #dedad1; --l2: #aeaba1; --l3: #66645d; --l4: #252523; }
+    .hm-card[data-metric="meeting"] { --l1: #f6dfcd; --l2: #efba92; --l3: #df8b52; --l4: #a65a25; }
+
+    .hm__month { grid-row: 1; color: var(--faint); font-size: 11px; white-space: nowrap; line-height: 1; padding-bottom: 2px; align-self: end; }
+    .hm__dname { grid-column: 1; color: var(--faint); font-size: 10.5px; line-height: var(--cell); padding-right: 6px; }
+
+    .hm__cell {
+      width: var(--cell); height: var(--cell);
+      border-radius: max(3px, calc(var(--cell) * .28));
+      background: #1d1d1b0d;
+      box-shadow: 0 0 0 1px #1d1d1b08 inset;
+      transition: background-color .45s var(--ease), transform .2s var(--ease);
+    }
+    .hm.is-recolor .hm__cell { transition-delay: var(--d, 0ms); }
+    .hm__cell[data-lv="1"] { background: var(--l1); }
+    .hm__cell[data-lv="2"] { background: var(--l2); }
+    .hm__cell[data-lv="3"] { background: var(--l3); }
+    .hm__cell[data-lv="4"] { background: var(--l4); }
+    button.hm__cell:hover, button.hm__cell.is-hot { transform: scale(1.25); position: relative; z-index: 1; }
+    .hm__cell.is-today { box-shadow: 0 0 0 1.5px var(--ink); }
+    .hm__cell.is-future { background: transparent; box-shadow: 0 0 0 1px var(--line) inset; }
+    .hm__cell:focus-visible { outline-offset: 1px; }
+
+    /* ---------- Footer: hint + legend ---------- */
+    .hm__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; color: var(--faint); font-size: 11.5px; }
+    .legend { display: inline-flex; align-items: center; gap: 4px; }
+    .legend i { width: 12px; height: 12px; border-radius: 3px; background: #1d1d1b0d; }
+    .legend i:nth-child(3) { background: var(--l1); }
+    .legend i:nth-child(4) { background: var(--l2); }
+    .legend i:nth-child(5) { background: var(--l3); }
+    .legend i:nth-child(6) { background: var(--l4); }
+    .legend span { margin: 0 4px; }
+
+    /* ---------- Tooltip ---------- */
+    .tip {
+      position: absolute; z-index: 10;
+      min-width: 168px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: var(--night); color: var(--night-ink);
+      font-size: 12px;
+      box-shadow: 0 18px 36px -18px #000000a6;
+      pointer-events: none;
+      transition: transform .25s var(--ease), opacity .2s;
+    }
+    .tip[hidden] { display: none; }
+    .tip__date { display: block; color: var(--night-dim); font-size: 11px; }
+    .tip__val { display: block; margin: 2px 0 6px; font: 400 17px/1.2 var(--font-display); }
+    .tip__mix { display: flex; height: 5px; gap: 1px; border-radius: 99px; overflow: hidden; background: #ffffff14; margin-bottom: 6px; }
+    .tip__mix i { flex: var(--h) 0 0; background: var(--c); }
+    .tip__mix i.is-focus { background: #f4f2ec; }
+    .tip__rows { display: grid; gap: 2px; color: var(--night-dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+    .tip__rows span { display: flex; align-items: center; gap: 6px; }
+    .tip__rows b { margin-left: auto; color: var(--night-ink); font-weight: 500; }
+    .tip__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
+    .tip__dot.is-focus { background: #f4f2ec; }
+
+    @media (max-width: 720px) {
+      .hm__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 16px; }
+      .hm-card { padding: 16px; }
+      .hm__scroll {
+        -webkit-mask-image: linear-gradient(90deg, #0000, #000 16px, #000);
+        mask-image: linear-gradient(90deg, #0000, #000 16px, #000);
+      }
+    }
+
+    @media (pointer: coarse) {
+      .seg-ctl button { padding: 11px 14px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hm__cell, .seg-ctl__pill, .tip { transition: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    data-range  starting range: 3m, 6m or 1y
+    data-seed   use the status tracker's sample data for days nothing was logged (keep in step with status-tracker.html)
+  -->
+  <article class="hm-card" data-heatmap data-range="6m" data-seed aria-label="Activity heatmap">
+    <header class="hm__head">
+      <h2 class="card__title">Activity</h2>
+      <div class="hm__controls">
+        <div class="seg-ctl" role="radiogroup" aria-label="Measure" data-ctl="metric">
+          <span class="seg-ctl__pill" aria-hidden="true"></span>
+          <button type="button" role="radio" data-v="online">Online</button>
+          <button type="button" role="radio" data-v="focus">Focus</button>
+          <button type="button" role="radio" data-v="meeting">Meetings</button>
+        </div>
+        <div class="seg-ctl" role="radiogroup" aria-label="Range" data-ctl="range">
+          <span class="seg-ctl__pill" aria-hidden="true"></span>
+          <button type="button" role="radio" data-v="3m" aria-label="3 months">3M</button>
+          <button type="button" role="radio" data-v="6m" aria-label="6 months">6M</button>
+          <button type="button" role="radio" data-v="1y" aria-label="1 year">1Y</button>
+        </div>
+      </div>
+    </header>
+
+    <dl class="hm__stats" aria-live="polite">
+      <div class="stat"><dt class="stat__lab" data-lab="total"></dt><dd class="stat__num" data-num="total">0</dd></div>
+      <div class="stat"><dt class="stat__lab">Average on active days</dt><dd class="stat__num" data-num="avg">0</dd></div>
+      <div class="stat"><dt class="stat__lab" data-lab="best">Best day</dt><dd class="stat__num" data-num="best">0</dd></div>
+      <div class="stat"><dt class="stat__lab">Longest workday streak</dt><dd class="stat__num" data-num="streak">0</dd></div>
+    </dl>
+
+    <div class="hm__scroll">
+      <div class="hm" role="grid" aria-label="Hours per day" data-grid></div>
+    </div>
+
+    <footer class="hm__foot">
+      <span data-hint>Hover or tab through the days for the breakdown.</span>
+      <span class="legend" aria-hidden="true"><span>Less</span><i></i><i></i><i></i><i></i><i></i><span>More</span></span>
+    </footer>
+
+    <div class="tip" role="tooltip" id="hm-tip" hidden></div>
+  </article>
+
+  <script>
+  (() => {
+    const root = document.querySelector('[data-heatmap]');
+    if (!root) return;
+
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    const SEED = root.hasAttribute('data-seed');
+    // Shared with status-tracker.html
+    const LOG_KEY = 'status-tracker:log';
+    const LIVE_KEY = 'status-tracker:live';
+    const PREF_KEY = 'activity-heatmap:view';
+    const IDS = ['active', 'focus', 'meeting', 'away', 'offline'];
+    const NAMES = { active: 'Active', focus: 'Focus', meeting: 'In a meeting', away: 'Away', offline: 'Offline' };
+
+    // Per measure: what it sums, its label, and the hour thresholds for levels 1–4.
+    const METRICS = {
+      online: { label: 'online', of: (e) => e.active + e.focus + e.meeting, bins: [6, 8.5, 9.5] },
+      focus: { label: 'focus', of: (e) => e.focus, bins: [1, 2, 3] },
+      meeting: { label: 'in meetings', of: (e) => e.meeting, bins: [1, 2, 3] },
+    };
+    const RANGES = { '3m': { weeks: 13, label: '3 months' }, '6m': { weeks: 26, label: '6 months' }, '1y': { weeks: 53, label: 'year' } };
+
+    const $ = (s) => root.querySelector(s);
+    const grid = $('[data-grid]');
+    const scroller = $('.hm__scroll');
+    const tip = $('.tip');
+
+    /* ---------- Dates ---------- */
+    let today = new Date(); today.setHours(0, 0, 0, 0);
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const parse = (k) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+    let TODAY = iso(today);
+    const isWeekend = (d) => d.getDay() === 0 || d.getDay() === 6;
+    const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+    const shortDate = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+    /* ---------- Shared status data ---------- */
+    const read = (k, fb) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? fb; } catch { return fb; } };
+    const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+    let log = read(LOG_KEY, {});
+    let live = read(LIVE_KEY, { status: 'offline', since: null });
+
+    const zero = () => Object.fromEntries(IDS.map((id) => [id, 0]));
+
+    // Same sample data as status-tracker.html, so the widgets agree.
+    function seedFor(d) {
+      if (!SEED || d >= today || today - d > 366 * 864e5) return null;
+      let s = (d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()) % 2147483647;
+      const rnd = () => ((s = (s * 16807) % 2147483647), (s - 1) / 2147483646);
+      rnd(); rnd();
+      const half = (max) => Math.round(rnd() * max * 2) / 2;
+      if (isWeekend(d)) return rnd() < 0.25 ? { ...zero(), active: 0.5 + half(2) } : null;
+      if (rnd() < 0.05) return { ...zero(), offline: 8 };
+      const focus = 1 + half(3), meeting = 0.5 + half(2.5), away = 0.5 + half(1);
+      const offline = rnd() < 0.3 ? 0.5 : 0;
+      const active = Math.max(1, 8.5 - focus - meeting) + half(1);
+      return { active, focus, meeting, away, offline };
+    }
+
+    function entryFor(d) {
+      if (d > today) return null;
+      const k = iso(d);
+      const base = log[k] ?? seedFor(d);
+      const e = { ...zero(), ...(base || {}) };
+      if (k === TODAY && live.status !== 'offline' && live.since) {
+        e[live.status] += (Date.now() - Math.max(live.since, +today)) / 36e5;
+      }
+      return e;
+    }
+
+    /* ---------- View state ---------- */
+    const pref = read(PREF_KEY, {});
+    let metric = METRICS[pref.metric] ? pref.metric : 'online';
+    let range = RANGES[pref.range] ? pref.range : (RANGES[root.dataset.range] ? root.dataset.range : '6m');
+    const savePref = () => write(PREF_KEY, { metric, range });
+
+    const levelOf = (v) => {
+      if (v < 0.05) return 0;
+      const b = METRICS[metric].bins;
+      return v < b[0] ? 1 : v < b[1] ? 2 : v < b[2] ? 3 : 4;
+    };
+    const h1 = (v) => (Math.round(v * 10) / 10).toFixed(1);
+
+    /* ---------- Build the grid ---------- */
+    let start, weeks, cells = [];
+
+    function build() {
+      weeks = RANGES[range].weeks;
+      const monday = addDays(today, -((today.getDay() + 6) % 7));
+      start = addDays(monday, -(weeks - 1) * 7);
+
+      grid.style.gridTemplateColumns = `auto repeat(${weeks}, var(--cell))`;
+      grid.style.gridTemplateRows = `14px repeat(7, var(--cell))`;
+
+      let html = '';
+      // Month labels where a new month starts, kept at least 3 columns apart.
+      let lastMonth = -1, lastCol = -9;
+      for (let w = 0; w < weeks; w++) {
+        const d = addDays(start, w * 7);
+        const m = d.getMonth();
+        if (m !== lastMonth && w - lastCol >= 3) {
+          html += `<span class="hm__month" style="grid-column:${w + 2} / span 3">${d.toLocaleDateString('en-US', { month: 'short' })}</span>`;
+          lastCol = w;
+        }
+        lastMonth = m;
+      }
+      ['Mon', '', 'Wed', '', 'Fri', '', ''].forEach((n, r) => {
+        html += `<span class="hm__dname" style="grid-row:${r + 2}" aria-hidden="true">${n}</span>`;
+      });
+      for (let w = 0; w < weeks; w++) {
+        for (let r = 0; r < 7; r++) {
+          const d = addDays(start, w * 7 + r);
+          const k = iso(d);
+          const pos = `grid-column:${w + 2};grid-row:${r + 2};--d:${w * 7 + r * 5}ms`;
+          html += d > today
+            ? `<span class="hm__cell is-future" style="${pos}" aria-hidden="true"></span>`
+            : `<button class="hm__cell${k === TODAY ? ' is-today' : ''}" type="button" role="gridcell" tabindex="-1" data-date="${k}" data-w="${w}" data-r="${r}" style="${pos}" aria-describedby="hm-tip"></button>`;
+        }
+      }
+      grid.innerHTML = html;
+      cells = [...grid.querySelectorAll('button.hm__cell')];
+      const todayCell = grid.querySelector(`[data-date="${TODAY}"]`) || cells[cells.length - 1];
+      todayCell.tabIndex = 0;
+      fit();
+    }
+
+    // Size cells to fill the card; below the minimum the grid scrolls, ending on today.
+    function fit() {
+      const avail = scroller.clientWidth - 34;
+      const gap = 3;
+      const size = Math.max(11, Math.min(24, Math.floor((avail - gap * (weeks - 1)) / weeks)));
+      grid.style.setProperty('--cell', `${size}px`);
+      scroller.scrollLeft = scroller.scrollWidth;
+    }
+
+    /* ---------- Paint levels + labels ---------- */
+    function paint() {
+      root.dataset.metric = metric;
+      const of = METRICS[metric].of;
+      cells.forEach((c) => {
+        const d = parse(c.dataset.date);
+        const v = of(entryFor(d));
+        c.dataset.lv = levelOf(v);
+        c.setAttribute('aria-label', `${shortDate(d)}: ${v >= 0.05 ? `${h1(v)} hours ${METRICS[metric].label}` : 'nothing logged'}`);
+      });
+      const b = METRICS[metric].bins;
+      $('.legend').setAttribute('title', `Less than ${b[0]} h · ${b[0]}–${b[1]} h · ${b[1]}–${b[2]} h · ${b[2]} h or more`);
+    }
+
+    /* ---------- Stats ---------- */
+    function countTo(el, to, fmt, dur = 900) {
+      const from = el._v ?? 0;
+      cancelAnimationFrame(el._raf);
+      if (reduce.matches || !dur || from === to) { el._v = to; el.innerHTML = fmt(to); return; }
+      const t0 = performance.now();
+      el._raf = requestAnimationFrame(function step(now) {
+        const p = Math.min(1, (now - t0) / dur);
+        el._v = from + (to - from) * (1 - Math.pow(1 - p, 3));
+        el.innerHTML = fmt(el._v);
+        if (p < 1) el._raf = requestAnimationFrame(step);
+      });
+    }
+
+    function stats(dur = 900) {
+      const of = METRICS[metric].of;
+      let total = 0, active = 0, best = 0, bestDay = null, run = 0, longest = 0;
+      for (let d = new Date(start); d <= today; d = addDays(d, 1)) {
+        const v = of(entryFor(d));
+        total += v;
+        if (v >= 0.05) active++;
+        if (v > best) { best = v; bestDay = new Date(d); }
+        if (isWeekend(d)) continue; // weekends neither count nor break a streak
+        if (v >= 0.05) { run++; longest = Math.max(longest, run); }
+        else if (iso(d) !== TODAY) run = 0; // an empty today doesn't break it yet
+      }
+      $('[data-lab="total"]').textContent = `Hours ${METRICS[metric].label} in the last ${RANGES[range].label}`;
+      $('[data-lab="best"]').textContent = bestDay ? `Best day · ${shortDate(bestDay)}` : 'Best day';
+      countTo($('[data-num="total"]'), total, (v) => `${Math.round(v).toLocaleString('en-US')}<small>h</small>`, dur);
+      countTo($('[data-num="avg"]'), active ? total / active : 0, (v) => `${h1(v)}<small>h</small>`, dur);
+      countTo($('[data-num="best"]'), best, (v) => `${h1(v)}<small>h</small>`, dur);
+      countTo($('[data-num="streak"]'), longest, (v) => `${Math.round(v)}<small>${Math.round(v) === 1 ? 'day' : 'days'}</small>`, dur);
+    }
+
+    /* ---------- Motion ---------- */
+    function sweepIn() {
+      if (reduce.matches) return;
+      cells.forEach((c) => {
+        const w = +c.dataset.w, r = +c.dataset.r;
+        c.animate([{ opacity: 0, transform: 'scale(.3)' }, { opacity: 1, transform: 'scale(1)' }],
+          { duration: 420, delay: w * 14 + r * 10, easing: 'cubic-bezier(.34,1.6,.64,1)', fill: 'backwards' });
+      });
+      grid.querySelectorAll('.hm__month, .hm__dname').forEach((el, i) => el.animate(
+        [{ opacity: 0 }, { opacity: 1 }], { duration: 400, delay: 100 + i * 20, fill: 'backwards' }));
+    }
+
+    function recolor() {
+      if (!reduce.matches) {
+        grid.classList.add('is-recolor');
+        clearTimeout(recolor._t);
+        recolor._t = setTimeout(() => grid.classList.remove('is-recolor'), weeks * 7 * 1 + 900);
+      }
+      paint();
+    }
+
+    /* ---------- Segmented controls ---------- */
+    const ctls = [...root.querySelectorAll('.seg-ctl')];
+    function syncCtl(ctl, animate = true) {
+      const value = ctl.dataset.ctl === 'metric' ? metric : range;
+      const btns = [...ctl.querySelectorAll('button')];
+      btns.forEach((b) => {
+        const on = b.dataset.v === value;
+        b.setAttribute('aria-checked', String(on));
+        b.tabIndex = on ? 0 : -1;
+      });
+      const b = btns.find((x) => x.dataset.v === value);
+      const pill = ctl.querySelector('.seg-ctl__pill');
+      if (!animate) pill.style.transition = 'none';
+      pill.style.width = `${b.offsetWidth}px`;
+      pill.style.transform = `translateX(${b.offsetLeft}px)`;
+      if (!animate) { pill.getBoundingClientRect(); pill.style.transition = ''; }
+    }
+
+    function choose(kind, v) {
+      if (kind === 'metric') {
+        if (v === metric) return;
+        metric = v;
+        recolor();
+        stats(600);
+      } else {
+        if (v === range) return;
+        range = v;
+        hideTip();
+        build();
+        paint();
+        stats(600);
+        sweepIn();
+      }
+      savePref();
+      syncCtl(root.querySelector(`[data-ctl="${kind}"]`));
+    }
+
+    ctls.forEach((ctl) => {
+      ctl.addEventListener('click', (e) => {
+        const b = e.target.closest('button');
+        if (b) choose(ctl.dataset.ctl, b.dataset.v);
+      });
+      ctl.addEventListener('keydown', (e) => {
+        const step = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
+        if (!step) return;
+        e.preventDefault();
+        const btns = [...ctl.querySelectorAll('button')];
+        const i = btns.indexOf(document.activeElement);
+        const next = btns[(i + step + btns.length) % btns.length];
+        next.focus();
+        choose(ctl.dataset.ctl, next.dataset.v);
+      });
+    });
+
+    /* ---------- Tooltip ---------- */
+    function showTip(cell) {
+      cells.forEach((c) => c.classList.toggle('is-hot', c === cell));
+      const d = parse(cell.dataset.date);
+      const e = entryFor(d);
+      const v = METRICS[metric].of(e);
+      const total = IDS.reduce((s, id) => s + e[id], 0);
+      const parts = IDS.filter((id) => e[id] >= 0.05);
+      tip.innerHTML = `
+        <span class="tip__date">${shortDate(d)}${cell.dataset.date === TODAY ? ' · today' : ''}</span>
+        <span class="tip__val">${v >= 0.05 ? `${h1(v)} h ${METRICS[metric].label}` : 'Nothing logged'}</span>
+        ${total ? `<span class="tip__mix" aria-hidden="true">${parts.map((id) => `<i class="${id === 'focus' ? 'is-focus' : ''}" style="--h:${e[id].toFixed(3)};--c:var(--st-${id})"></i>`).join('')}</span>
+        <span class="tip__rows">${parts.map((id) => `<span><i class="tip__dot${id === 'focus' ? ' is-focus' : ''}" style="--c:var(--st-${id})"></i>${NAMES[id]}<b>${h1(e[id])} h</b></span>`).join('')}</span>` : ''}`;
+      tip.hidden = false;
+
+      const c = root.getBoundingClientRect(), r = cell.getBoundingClientRect();
+      const w = tip.offsetWidth, h = tip.offsetHeight;
+      const left = Math.max(8, Math.min(c.width - w - 8, r.left - c.left + r.width / 2 - w / 2));
+      let top = r.top - c.top - h - 10;
+      if (top < 8) top = r.bottom - c.top + 10;
+      const first = tip.style.transform === '';
+      if (first) tip.style.transition = 'none';
+      tip.style.transform = `translate(${left}px, ${top}px)`;
+      if (first) { tip.getBoundingClientRect(); tip.style.transition = ''; }
+      tip.style.left = '0'; tip.style.top = '0';
+    }
+    function hideTip() {
+      tip.hidden = true;
+      tip.style.transform = '';
+      cells.forEach((c) => c.classList.remove('is-hot'));
+    }
+
+    grid.addEventListener('pointerover', (e) => {
+      const cell = e.target.closest('button.hm__cell');
+      if (cell) showTip(cell);
+    });
+    grid.addEventListener('pointerleave', () => { if (!grid.contains(document.activeElement)) hideTip(); });
+    grid.addEventListener('focusin', (e) => {
+      const cell = e.target.closest('button.hm__cell');
+      if (!cell) return;
+      cells.forEach((c) => { c.tabIndex = c === cell ? 0 : -1; });
+      showTip(cell);
+    });
+    grid.addEventListener('focusout', (e) => { if (!grid.contains(e.relatedTarget)) hideTip(); });
+    grid.addEventListener('click', (e) => {
+      const cell = e.target.closest('button.hm__cell');
+      if (cell) showTip(cell);
+    });
+    scroller.addEventListener('scroll', () => { if (!tip.hidden) hideTip(); }, { passive: true });
+
+    /* ---------- Keyboard: ↑↓ by day, ←→ by week ---------- */
+    grid.addEventListener('keydown', (e) => {
+      const cell = e.target.closest('button.hm__cell');
+      if (!cell) return;
+      let target;
+      const d = parse(cell.dataset.date);
+      const step = { ArrowUp: -1, ArrowDown: 1, ArrowLeft: -7, ArrowRight: 7 }[e.key];
+      if (step) target = grid.querySelector(`[data-date="${iso(addDays(d, step))}"]`);
+      else if (e.key === 'Home') target = cells[0];
+      else if (e.key === 'End') target = grid.querySelector(`[data-date="${TODAY}"]`);
+      else if (e.key === 'Escape') { hideTip(); return; }
+      else return;
+      e.preventDefault();
+      if (target) { target.focus(); target.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+    });
+
+    /* ---------- Live updates ---------- */
+    function refreshLive() {
+      paint();
+      stats(300);
+    }
+    setInterval(() => {
+      const now = new Date(); now.setHours(0, 0, 0, 0);
+      if (+now !== +today) { today = now; TODAY = iso(today); build(); }
+      if (live.status !== 'offline') refreshLive();
+    }, 30000);
+    addEventListener('storage', (e) => {
+      if (e.key === LIVE_KEY) live = read(LIVE_KEY, live);
+      else if (e.key === LOG_KEY) log = read(LOG_KEY, log);
+      else return;
+      refreshLive();
+    });
+
+    let lastW = innerWidth;
+    addEventListener('resize', () => {
+      ctls.forEach((c) => syncCtl(c, false));
+      if (innerWidth === lastW) return;
+      lastW = innerWidth;
+      hideTip();
+      fit();
+    });
+
+    /* ---------- Start ---------- */
+    build();
+    paint();
+    ctls.forEach((c) => syncCtl(c, false));
+    stats(reduce.matches ? 0 : 1200);
+    sweepIn();
+    document.fonts?.ready.then(() => { ctls.forEach((c) => syncCtl(c, false)); fit(); });
+  })();
+  </script>
+</body>
+</html>

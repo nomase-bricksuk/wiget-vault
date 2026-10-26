@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Focus ring</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --card: #fffdf8a8;
+      --card-2: #fffdf8db;
+      --well: #efece4;
+      --hair: #ffffffe6;
+      --line: #1d1d1b17;
+      --line-2: #1d1d1b29;
+      --ink: #1d1d1b;
+      --dim: #5c5a54;
+      --faint: #75726a;
+      --honey: #f6c343;
+      --honey-2: #fbe29a;
+      --honey-ink: #5a4306;
+      --night: #252523;
+      --night-ink: #f4f2ec;
+      --ok: #3f8f5a;
+      --shadow: 0 1px 0 #fffc inset, 0 18px 40px -26px #3c321459;
+      --font-display: "Outfit", system-ui, sans-serif;
+      --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+      --back: cubic-bezier(.34, 1.7, .64, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      place-items: center;
+      padding: 16px;
+      color: var(--ink);
+      font: 400 14px/1.45 var(--font-body);
+      -webkit-font-smoothing: antialiased;
+      background:
+        radial-gradient(90% 70% at 100% 100%, #f8d66e8c, #f8d66e00 70%),
+        radial-gradient(60% 50% at 88% 0%, #fae4a080, #fae4a000 70%),
+        linear-gradient(160deg, #f5f3ee, #f2efe6 55%, #fbeec0);
+    }
+
+    button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
+    button:disabled { cursor: default; opacity: .35; }
+    h2, p { margin: 0; }
+    :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+    .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .ico {
+      width: 18px; height: 18px; flex: none;
+      fill: none; stroke: currentColor; stroke-width: 1.7px;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    /* ---------- Card ---------- */
+    .fr {
+      position: relative;
+      width: min(100%, 380px);
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      border-radius: 28px;
+      background: var(--card);
+      box-shadow: var(--shadow), 0 0 0 1px var(--hair) inset;
+    }
+
+    .card__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .card__title { font: 400 20px/1.2 var(--font-display); letter-spacing: -.01em; }
+
+    /* Goal stepper */
+    .goal {
+      display: inline-flex; align-items: center; gap: 2px;
+      padding: 3px;
+      border-radius: 999px;
+      background: var(--card-2);
+      box-shadow: 0 0 0 1px var(--line) inset;
+    }
+    .goal button { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; transition: background-color .25s; }
+    .goal button:hover:not(:disabled) { background: #1d1d1b0d; }
+    .goal button .ico { width: 14px; height: 14px; }
+    .goal__val { min-width: 74px; text-align: center; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+    .goal__val small { color: var(--faint); font-size: 12px; font-weight: 400; }
+
+    /* ---------- Ring ---------- */
+    .ring { position: relative; width: min(100%, 220px); aspect-ratio: 1; margin: 18px auto 6px; }
+    .ring svg { width: 100%; height: 100%; overflow: visible; }
+    .ring__track { fill: none; stroke: var(--well); stroke-width: 16px; }
+    .ring__arc {
+      fill: none; stroke-width: 16px; stroke-linecap: round;
+      stroke-dasharray: 100 100; stroke-dashoffset: 100;
+      transform: rotate(-90deg); transform-origin: 100px 100px;
+      transition: stroke-dashoffset .8s var(--ease), opacity .3s;
+    }
+    .ring__arc--focus { stroke: var(--night); }
+    .ring__arc--over { stroke: var(--honey); filter: drop-shadow(0 0 0 #0000); }
+    .fr.is-intro .ring__arc { transition: stroke-dashoffset 1.4s cubic-bezier(.65, 0, .35, 1), opacity .3s; }
+    .fr.is-hit .ring__arc--focus { stroke: var(--honey); }
+
+    .ring__read { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+    .ring__big { font: 300 38px/1 var(--font-display); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+    .ring__sub { margin-top: 6px; color: var(--dim); font-size: 12px; }
+    .ring__pct { margin-top: 2px; color: var(--faint); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+
+    .state { min-height: 18px; margin-bottom: 14px; color: var(--dim); font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; }
+    .state b { color: var(--ink); font-weight: 600; }
+    .state__dot { display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--ok); vertical-align: 1px; animation: pulse 1.6s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: .25; } }
+
+    /* ---------- Start / pause ---------- */
+    .go {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      height: 44px;
+      margin-bottom: 16px;
+      border-radius: 999px;
+      background: var(--night); color: var(--night-ink);
+      font-size: 13px; font-weight: 500;
+      transition: background-color .3s, color .3s;
+    }
+    .go[aria-pressed="true"] { background: var(--honey); color: var(--honey-ink); }
+    .go .ico { width: 16px; height: 16px; }
+    .go .ico--play { fill: currentColor; stroke-width: 1.2px; }
+    .go .ico--pause, .go[aria-pressed="true"] .ico--play { display: none; }
+    .go[aria-pressed="true"] .ico--pause { display: block; }
+
+    /* ---------- Streak ---------- */
+    .streak {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      border-radius: 18px;
+      background: var(--card-2);
+      box-shadow: 0 0 0 1px var(--line) inset;
+    }
+    .streak__ico { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--honey-2); color: var(--honey-ink); }
+    .streak__ico .ico { width: 17px; height: 17px; }
+    .streak__txt { flex: 1; display: grid; }
+    .streak__txt b { font: 400 17px/1.2 var(--font-display); }
+    .streak__txt small { color: var(--faint); font-size: 11.5px; }
+    .streak__best { color: var(--dim); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+    .streak__best b { display: block; color: var(--ink); font: 300 20px/1 var(--font-display); }
+
+    /* ---------- Last 7 days ---------- */
+    .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .wday { display: grid; justify-items: center; gap: 4px; }
+    .wday svg { width: 100%; max-width: 38px; aspect-ratio: 1; overflow: visible; }
+    .wday__track { fill: none; stroke: var(--well); stroke-width: 5px; }
+    .wday__arc {
+      fill: none; stroke: var(--night); stroke-width: 5px; stroke-linecap: round;
+      stroke-dasharray: 100 100;
+      transform: rotate(-90deg); transform-origin: 20px 20px;
+      transition: stroke-dashoffset .6s var(--ease);
+    }
+    .wday.is-hit .wday__arc { stroke: var(--honey); }
+    .wday__check { fill: none; stroke: var(--honey-ink); stroke-width: 2.4px; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+    .wday.is-hit .wday__check { opacity: 1; }
+    .wday__lab { color: var(--faint); font-size: 11px; }
+    .wday.is-today .wday__lab { color: var(--ink); font-weight: 600; }
+    .wday.is-off .wday__track { stroke-dasharray: 2 4; }
+
+    /* ---------- Toast ---------- */
+    .toast {
+      position: fixed; left: 0; right: 0; bottom: 26px; z-index: 30;
+      width: fit-content; max-width: calc(100vw - 32px); margin: 0 auto;
+      padding: 12px 18px; border-radius: 999px;
+      background: var(--night); color: var(--night-ink);
+      font-size: 13px; font-weight: 500;
+      box-shadow: 0 20px 40px -20px #0009;
+      opacity: 0; transform: translateY(18px) scale(.96);
+      pointer-events: none;
+      transition: opacity .3s, transform .45s var(--back);
+    }
+    .toast.is-on { opacity: 1; transform: none; }
+
+    @media (pointer: coarse) {
+      .goal button { width: 40px; height: 40px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ring__arc, .fr.is-intro .ring__arc, .wday__arc, .toast { transition: none; }
+      .state__dot { animation: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M6 12h12"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5L8 5.5Z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8.5 6v12M15.5 6v12"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 21c-3.9 0-6.5-2.6-6.5-6 0-3.2 2.2-5.1 3.6-7.3.4 1.6 1.3 2.6 2.4 3.1C11.8 7.6 13 5 15.5 3c.3 3 2.5 4.6 3 7.9.7 4.6-2.4 10.1-6.5 10.1Z"/></symbol>
+  </svg>
+
+  <!--
+    data-goal-hours  default daily focus goal (the stepper's choice is saved and wins after that)
+    data-seed        use the status tracker's sample data for days nothing was logged (keep in step with status-tracker.html)
+  -->
+  <article class="fr" data-focus-ring data-goal-hours="3" data-seed aria-label="Daily focus goal">
+    <header class="card__head">
+      <h2 class="card__title">Focus</h2>
+      <div class="goal" role="group" aria-label="Daily focus goal">
+        <button type="button" data-goal="-1" aria-label="Lower the goal by half an hour"><svg class="ico"><use href="#i-minus"/></svg></button>
+        <span class="goal__val" data-goal-val aria-live="polite"></span>
+        <button type="button" data-goal="1" aria-label="Raise the goal by half an hour"><svg class="ico"><use href="#i-plus"/></svg></button>
+      </div>
+    </header>
+
+    <div class="ring">
+      <svg viewBox="0 0 200 200" aria-hidden="true">
+        <circle class="ring__track" cx="100" cy="100" r="80" />
+        <circle class="ring__arc ring__arc--focus" cx="100" cy="100" r="80" pathLength="100" />
+        <circle class="ring__arc ring__arc--over" cx="100" cy="100" r="80" pathLength="100" />
+      </svg>
+      <div class="ring__read" role="img" data-ring-label>
+        <p class="ring__big" data-big>0m</p>
+        <p class="ring__sub" data-sub></p>
+        <p class="ring__pct" data-pct></p>
+      </div>
+    </div>
+
+    <p class="state" data-state aria-live="polite"></p>
+
+    <button class="go" type="button" data-go aria-pressed="false">
+      <svg class="ico ico--play"><use href="#i-play"/></svg><svg class="ico ico--pause"><use href="#i-pause"/></svg>
+      <span data-go-txt>Start focus</span>
+    </button>
+
+    <div class="streak">
+      <span class="streak__ico" aria-hidden="true"><svg class="ico"><use href="#i-flame"/></svg></span>
+      <p class="streak__txt"><b data-streak>0 days</b><small>Workday streak at your goal</small></p>
+      <p class="streak__best">Best<b data-best>0</b></p>
+    </div>
+
+    <div class="week" role="list" aria-label="Focus over the last 7 days" data-week></div>
+  </article>
+
+  <div class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+  (() => {
+    const root = document.querySelector('[data-focus-ring]');
+    if (!root) return;
+
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    const SEED = root.hasAttribute('data-seed');
+    // Shared with status-tracker.html
+    const LOG_KEY = 'status-tracker:log';
+    const LIVE_KEY = 'status-tracker:live';
+    const GOAL_KEY = 'focus-ring:goal';
+    const IDS = ['active', 'focus', 'meeting', 'away', 'offline'];
+    const NAMES = { active: 'Active', focus: 'Focus', meeting: 'In a meeting', away: 'Away', offline: 'Offline' };
+    const GOAL_MIN = 0.5, GOAL_MAX = 8, GOAL_STEP = 0.5;
+
+    const $ = (s) => root.querySelector(s);
+    const arcFocus = $('.ring__arc--focus');
+    const arcOver = $('.ring__arc--over');
+    const bigEl = $('[data-big]');
+    const subEl = $('[data-sub]');
+    const pctEl = $('[data-pct]');
+    const stateEl = $('[data-state]');
+    const goBtn = $('[data-go]');
+    const goTxt = $('[data-go-txt]');
+    const goalVal = $('[data-goal-val]');
+    const weekEl = $('[data-week]');
+    const toast = document.querySelector('.toast');
+
+    /* ---------- Dates ---------- */
+    let today = new Date(); today.setHours(0, 0, 0, 0);
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    let TODAY = iso(today);
+    const isWeekend = (d) => d.getDay() === 0 || d.getDay() === 6;
+    const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+
+    /* ---------- Shared status data ---------- */
+    const read = (k, fb) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? fb; } catch { return fb; } };
+    const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+    let log = read(LOG_KEY, {});
+    let live = read(LIVE_KEY, { status: 'offline', since: null, date: TODAY });
+    let goal = Math.min(GOAL_MAX, Math.max(GOAL_MIN, +read(GOAL_KEY, null) || +root.dataset.goalHours || 3));
+
+    const zero = () => Object.fromEntries(IDS.map((id) => [id, 0]));
+    const round = (v) => Math.round(v * 100) / 100;
+
+    // Same sample data as status-tracker.html, so the widgets agree.
+    function seedFor(d) {
+      if (!SEED || d >= today || today - d > 366 * 864e5) return null;
+      let s = (d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()) % 2147483647;
+      const rnd = () => ((s = (s * 16807) % 2147483647), (s - 1) / 2147483646);
+      rnd(); rnd();
+      const half = (max) => Math.round(rnd() * max * 2) / 2;
+      if (isWeekend(d)) return rnd() < 0.25 ? { ...zero(), active: 0.5 + half(2) } : null;
+      if (rnd() < 0.05) return { ...zero(), offline: 8 };
+      const focus = 1 + half(3), meeting = 0.5 + half(2.5), away = 0.5 + half(1);
+      const offline = rnd() < 0.3 ? 0.5 : 0;
+      const active = Math.max(1, 8.5 - focus - meeting) + half(1);
+      return { active, focus, meeting, away, offline };
+    }
+
+    // Same as status-tracker.html: fold live time into the log, split at midnight.
+    function commit() {
+      const now = Date.now();
+      if (live.status !== 'offline' && live.since) {
+        let from = live.since;
+        while (from < now) {
+          const day = new Date(from); day.setHours(0, 0, 0, 0);
+          const to = Math.min(now, +addDays(day, 1));
+          const k = iso(day);
+          const base = { ...zero(), ...(log[k] ?? seedFor(day) ?? {}) };
+          base[live.status] = round(base[live.status] + (to - from) / 36e5);
+          log[k] = base;
+          from = to;
+        }
+        live.since = now;
+        write(LOG_KEY, log);
+      }
+      live.date = TODAY;
+      write(LIVE_KEY, live);
+    }
+
+    function focusOn(d) {
+      const k = iso(d);
+      if (d > today) return 0;
+      const base = log[k] ?? seedFor(d);
+      let f = base ? base.focus || 0 : 0;
+      if (k === TODAY && live.status === 'focus' && live.since) f += (Date.now() - Math.max(live.since, +today)) / 36e5;
+      return f;
+    }
+
+    /* ---------- Formatting ---------- */
+    const hm = (h) => {
+      const mins = Math.floor(h * 60 + 1e-6);
+      const H = Math.floor(mins / 60), M = mins % 60;
+      return H ? `${H}h${M ? ` ${String(M).padStart(2, '0')}m` : ''}` : `${M}m`;
+    };
+    const goalText = (g) => (g % 1 ? `${Math.floor(g)}h 30m` : `${g}h`);
+    const clock = (ms) => {
+      const s = Math.max(0, Math.floor(ms / 1000));
+      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+      return h ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`;
+    };
+
+    /* ---------- Ring + state (runs every second) ---------- */
+    let lastP = null;
+    function tick() {
+      const f = focusOn(today);
+      const p = f / goal;
+      arcFocus.style.strokeDashoffset = 100 - Math.min(1, p) * 100;
+      arcOver.style.strokeDashoffset = 100 - Math.min(1, Math.max(0, p - 1)) * 100;
+      arcOver.style.opacity = p > 1 ? 1 : 0;
+      root.classList.toggle('is-hit', p >= 1);
+
+      bigEl.textContent = hm(f);
+      subEl.textContent = `of ${goalText(goal)} goal`;
+      pctEl.textContent = p >= 1 ? (p > 1.005 ? `Goal reached · ${Math.round(p * 100)}%` : 'Goal reached') : `${Math.floor(p * 100)}%`;
+      $('[data-ring-label]').setAttribute('aria-label', `${hm(f)} of focus today, ${Math.round(p * 100)}% of a ${goalText(goal)} goal`);
+
+      const focusing = live.status === 'focus' && live.since;
+      goBtn.setAttribute('aria-pressed', String(!!focusing));
+      goTxt.textContent = focusing ? 'Pause focus' : 'Start focus';
+      stateEl.innerHTML = focusing
+        ? `<span class="state__dot" aria-hidden="true"></span>Focusing · <b>${clock(Date.now() - live.since)}</b> this session`
+        : live.status !== 'offline' && live.since
+          ? `Status: ${NAMES[live.status]}`
+          : 'Not tracking right now';
+
+      if (lastP !== null && lastP < 1 && p >= 1) celebrate();
+      lastP = p;
+    }
+
+    /* ---------- Streak + last 7 days (runs on change, and every 30 s) ---------- */
+    function streaks() {
+      // Current: workdays back from today; today only counts once the goal is met.
+      let cur = 0;
+      let d = focusOn(today) >= goal ? today : addDays(today, -1);
+      for (let i = 0; i < 400; i++, d = addDays(d, -1)) {
+        if (isWeekend(d)) continue;
+        if (focusOn(d) >= goal) cur++;
+        else break;
+      }
+      // Best: longest run of workdays at goal in the last year.
+      let best = 0, run = 0;
+      for (let i = 365; i >= 0; i--) {
+        const day = addDays(today, -i);
+        if (isWeekend(day)) continue;
+        if (focusOn(day) >= goal) { run++; best = Math.max(best, run); }
+        else if (i > 0) run = 0; // an unfinished today doesn't break the run
+      }
+      return { cur, best: Math.max(best, cur) };
+    }
+
+    const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    weekEl.innerHTML = Array.from({ length: 7 }, () => `
+      <div class="wday" role="listitem">
+        <svg viewBox="0 0 40 40" aria-hidden="true">
+          <circle class="wday__track" cx="20" cy="20" r="16" />
+          <circle class="wday__arc" cx="20" cy="20" r="16" pathLength="100" style="stroke-dashoffset:100" />
+          <path class="wday__check" d="m14.5 20.5 3.5 3.5 7.5-8" />
+        </svg>
+        <span class="wday__lab"></span>
+      </div>`).join('');
+    const wdays = [...weekEl.children];
+
+    let streakShown = null;
+    function refresh() {
+      wdays.forEach((el, i) => {
+        const d = addDays(today, i - 6);
+        const f = focusOn(d), p = f / goal;
+        el.classList.toggle('is-hit', p >= 1);
+        el.classList.toggle('is-today', i === 6);
+        el.classList.toggle('is-off', isWeekend(d));
+        el.querySelector('.wday__arc').style.strokeDashoffset = 100 - Math.min(1, p) * 100;
+        el.querySelector('.wday__lab').textContent = DAY_LETTERS[d.getDay()];
+        el.setAttribute('aria-label', `${d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}: ${hm(f)} focus${p >= 1 ? ', goal reached' : ''}`);
+      });
+
+      const { cur, best } = streaks();
+      const streakEl = $('[data-streak]');
+      streakEl.textContent = `${cur} ${cur === 1 ? 'day' : 'days'}`;
+      $('[data-best]').textContent = best;
+      if (streakShown !== null && cur > streakShown && !reduce.matches) {
+        streakEl.animate([{ transform: 'scale(.7)', opacity: .3 }, { transform: 'scale(1)', opacity: 1 }],
+          { duration: 450, easing: 'cubic-bezier(.34,2,.64,1)' });
+      }
+      streakShown = cur;
+
+      goalVal.innerHTML = `${goalText(goal)} <small>/ day</small>`;
+      root.querySelector('[data-goal="-1"]').disabled = goal <= GOAL_MIN;
+      root.querySelector('[data-goal="1"]').disabled = goal >= GOAL_MAX;
+    }
+
+    /* ---------- Actions ---------- */
+    goBtn.addEventListener('click', () => {
+      commit();
+      const focusing = live.status === 'focus' && live.since;
+      live.status = focusing ? 'active' : 'focus';
+      live.since = Date.now();
+      write(LIVE_KEY, live);
+      tick();
+      if (!reduce.matches) {
+        goBtn.querySelector(focusing ? '.ico--play' : '.ico--pause').animate(
+          [{ transform: 'scale(.6)' }, { transform: 'scale(1)' }], { duration: 450, easing: 'cubic-bezier(.34,2,.64,1)' });
+      }
+      say(focusing ? 'Focus paused — status set to Active' : 'Focus started');
+    });
+
+    root.querySelectorAll('[data-goal]').forEach((b) => b.addEventListener('click', () => {
+      const prevHit = focusOn(today) >= goal;
+      goal = Math.min(GOAL_MAX, Math.max(GOAL_MIN, goal + +b.dataset.goal * GOAL_STEP));
+      write(GOAL_KEY, goal);
+      lastP = prevHit ? 1 : null; // changing the goal shouldn't throw a celebration
+      refresh();
+      tick();
+    }));
+
+    function celebrate() {
+      say(`Focus goal reached — ${goalText(goal)} today`);
+      refresh();
+      if (reduce.matches) return;
+      const ring = root.querySelector('.ring');
+      ring.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.04)' }, { transform: 'scale(1)' }],
+        { duration: 600, easing: 'cubic-bezier(.34,1.6,.64,1)' });
+      const r = ring.getBoundingClientRect();
+      for (let i = 0; i < 18; i++) {
+        const dot = document.createElement('i');
+        const size = 4 + Math.random() * 5;
+        Object.assign(dot.style, {
+          position: 'fixed', zIndex: 40, pointerEvents: 'none', borderRadius: '50%',
+          left: `${r.left + r.width / 2}px`, top: `${r.top + r.height / 2}px`,
+          width: `${size}px`, height: `${size}px`,
+          background: i % 3 ? 'var(--honey)' : 'var(--night)',
+        });
+        document.body.append(dot);
+        const a = (i / 18) * Math.PI * 2 + Math.random() * 0.3;
+        const d = r.width / 2 + 10 + Math.random() * 30;
+        const x = Math.cos(a) * d, y = Math.sin(a) * d;
+        dot.animate([
+          { transform: 'translate(0,0)', opacity: 0 },
+          { transform: `translate(${x * .8}px, ${y * .8}px)`, opacity: 1, offset: .4 },
+          { transform: `translate(${x}px, ${y + 16}px) scale(.3)`, opacity: 0 },
+        ], { duration: 1000, easing: 'cubic-bezier(.22,1,.36,1)' }).onfinish = () => dot.remove();
+      }
+    }
+
+    let toastTimer;
+    function say(msg) {
+      toast.textContent = msg;
+      toast.classList.add('is-on');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('is-on'), 2600);
+    }
+
+    /* ---------- Sync with the status tracker in other tabs ---------- */
+    addEventListener('storage', (e) => {
+      if (e.key === LIVE_KEY) live = read(LIVE_KEY, live);
+      else if (e.key === LOG_KEY) log = read(LOG_KEY, log);
+      else if (e.key === GOAL_KEY) goal = +read(GOAL_KEY, goal) || goal;
+      else return;
+      refresh();
+      tick();
+    });
+
+    setInterval(() => {
+      // Roll over at midnight.
+      const now = new Date(); now.setHours(0, 0, 0, 0);
+      if (+now !== +today) { today = now; TODAY = iso(today); lastP = null; }
+      tick();
+    }, 1000);
+    setInterval(refresh, 30000);
+
+    /* ---------- Start ---------- */
+    if (live.date !== TODAY) commit();
+    refresh();
+    if (!reduce.matches) {
+      root.classList.add('is-intro');
+      wdays.forEach((el, i) => el.animate(
+        [{ opacity: 0, transform: 'translateY(8px) scale(.8)' }, { opacity: 1, transform: 'none' }],
+        { duration: 500, delay: 400 + i * 50, easing: 'cubic-bezier(.34,1.6,.64,1)', fill: 'backwards' }
+      ));
+      // Start the arcs empty, then let them fill.
+      arcFocus.style.strokeDashoffset = 100;
+      arcOver.style.strokeDashoffset = 100;
+      wdays.forEach((el) => {
+        const arc = el.querySelector('.wday__arc');
+        const to = arc.style.strokeDashoffset;
+        arc.style.strokeDashoffset = 100;
+        el._to = to;
+      });
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        wdays.forEach((el) => { el.querySelector('.wday__arc').style.strokeDashoffset = el._to; });
+        tick();
+        setTimeout(() => root.classList.remove('is-intro'), 1500);
+      }));
+    } else {
+      tick();
+    }
+  })();
+  </script>
+</body>
+</html>

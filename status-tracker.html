@@ -1,0 +1,887 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Status tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --card: #fffdf8a8;
+      --card-2: #fffdf8db;
+      --hair: #ffffffe6;
+      --line: #1d1d1b17;
+      --line-2: #1d1d1b29;
+      --ink: #1d1d1b;
+      --dim: #5c5a54;
+      --faint: #75726a;
+      --honey: #f6c343;
+      --honey-2: #fbe29a;
+      --honey-ink: #5a4306;
+      --night: #252523;
+      --night-2: #34332f;
+      --night-ink: #f4f2ec;
+      --night-dim: #a9a69c;
+      --grey: #b9b6ad;
+      --ok: #3f8f5a;
+      --shadow: 0 1px 0 #fffc inset, 0 18px 40px -26px #3c321459;
+      --font-display: "Outfit", system-ui, sans-serif;
+      --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+      --back: cubic-bezier(.34, 1.7, .64, 1);
+
+      /* One colour per status */
+      --st-active: var(--honey);
+      --st-focus: var(--night);
+      --st-meeting: #df8b52;
+      --st-away: var(--grey);
+      --st-offline: #e2ddd1;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      place-items: center;
+      padding: 16px;
+      color: var(--ink);
+      font: 400 14px/1.45 var(--font-body);
+      -webkit-font-smoothing: antialiased;
+      background:
+        radial-gradient(90% 70% at 100% 100%, #f8d66e8c, #f8d66e00 70%),
+        radial-gradient(60% 50% at 88% 0%, #fae4a080, #fae4a000 70%),
+        linear-gradient(160deg, #f5f3ee, #f2efe6 55%, #fbeec0);
+    }
+
+    button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
+    button:disabled { cursor: default; }
+    h2, h3, p { margin: 0; }
+    :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+    .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .ico {
+      width: 18px; height: 18px; flex: none;
+      fill: none; stroke: currentColor; stroke-width: 1.7px;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--c); }
+    .dot--offline { box-shadow: 0 0 0 1px var(--line-2) inset; }
+
+    /* ---------- Card ---------- */
+    .st-card {
+      position: relative;
+      width: min(100%, 760px);
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      border-radius: 28px;
+      background: var(--card);
+      box-shadow: var(--shadow), 0 0 0 1px var(--hair) inset;
+    }
+
+    /* ---------- Header: totals + month pill ---------- */
+    .month__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .month__sum { color: var(--dim); font: 300 20px/1 var(--font-display); }
+    .month__sum .big { color: var(--ink); }
+    .month__unit { margin-left: 4px; font-size: 16px; }
+    .big { font: 300 34px/1 var(--font-display); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+
+    .month__nav { display: flex; align-items: center; gap: 4px; }
+    .pill-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+      min-height: 32px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: var(--card-2);
+      box-shadow: 0 0 0 1px var(--line) inset;
+      font-size: 12px; font-weight: 500;
+      transition: box-shadow .3s var(--ease);
+    }
+    .pill-btn:hover { box-shadow: 0 0 0 1px var(--line-2) inset; }
+    .pill-btn .ico { width: 14px; height: 14px; }
+    .pill-btn--icon { width: 32px; padding: 0; }
+    .pill-btn--label { min-width: 132px; overflow: hidden; }
+    .pill-btn--label[aria-disabled="true"] { cursor: default; }
+    .pill-btn__txt { display: inline-block; }
+
+    /* ---------- Live status switcher ---------- */
+    .now {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 18px;
+      padding: 6px 6px 6px 14px;
+      border-radius: 999px;
+      background: var(--card-2);
+      box-shadow: 0 0 0 1px var(--hair) inset, 0 10px 24px -20px #3c321480;
+    }
+    .now__lab { color: var(--faint); font-size: 12px; font-weight: 500; }
+    .status-set { position: relative; display: flex; gap: 2px; min-width: 0; }
+    .status-set__pill {
+      position: absolute; top: 0; bottom: 0; left: 0;
+      width: 0;
+      border-radius: 999px;
+      background: var(--night);
+      pointer-events: none;
+      transition: transform .5s var(--ease), width .5s var(--ease);
+    }
+    .st {
+      position: relative; z-index: 1;
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 8px 13px;
+      border-radius: 999px;
+      color: var(--dim);
+      font-size: 12.5px; font-weight: 500;
+      white-space: nowrap;
+      transition: color .35s var(--ease);
+    }
+    .st:hover { color: var(--ink); }
+    .st[aria-pressed="true"] { color: var(--night-ink); }
+    .st[aria-pressed="true"] .dot--focus { box-shadow: 0 0 0 1.5px var(--night-ink); }
+    .now__time { margin-left: auto; padding-right: 8px; color: var(--dim); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .now__time b { color: var(--ink); font-weight: 600; }
+
+    /* ---------- Rail: the month's split across statuses ---------- */
+    .rail { display: flex; gap: 8px; min-width: 0; margin-bottom: 16px; }
+    .seg { flex: var(--w) 1 0; min-width: 64px; transition: flex-grow .6s var(--ease); }
+    .seg__label { display: block; margin-bottom: 8px; color: var(--dim); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .seg__bar {
+      position: relative; isolation: isolate;
+      display: flex; align-items: center;
+      height: 34px;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .seg__fill { position: absolute; inset: 0; border-radius: inherit; transform-origin: 0 50%; background: var(--c); }
+    .seg__num { position: relative; padding-left: 14px; font: 500 12px/1 var(--font-body); font-variant-numeric: tabular-nums; color: var(--ink); }
+    .seg--focus .seg__num { color: var(--night-ink); }
+    .seg--active .seg__num { color: var(--honey-ink); }
+    .seg--meeting .seg__num { color: #4a2208; }
+    .seg--offline .seg__fill { box-shadow: 0 0 0 1px var(--line) inset; }
+
+    /* ---------- Month grid ---------- */
+    .month {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      grid-auto-rows: minmax(70px, auto);
+      grid-template-rows: auto;
+      align-content: start;
+      gap: 6px;
+    }
+    .month__dname { padding-bottom: 4px; color: var(--faint); font-size: 11.5px; text-align: center; }
+
+    .mday {
+      position: relative;
+      display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; gap: 6px;
+      min-height: 70px;
+      padding: 7px 8px 8px;
+      border-radius: 14px;
+      background: #ffffff73;
+      box-shadow: 0 0 0 1px var(--line) inset;
+      text-align: left;
+      transition: box-shadow .25s var(--ease), background-color .25s var(--ease);
+    }
+    .mday:not([aria-disabled="true"]):hover { box-shadow: 0 0 0 1px var(--line-2) inset; background: #ffffffa6; }
+    .mday[aria-disabled="true"] { cursor: default; }
+    .mday__top { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+    .mday__n { color: var(--dim); font-size: 12px; }
+    .mday.is-off { background: transparent; }
+    .mday.is-off .mday__n, .mday.is-future .mday__n { color: var(--faint); }
+    .mday.is-today { box-shadow: 0 0 0 1.5px var(--ink) inset; }
+    .mday.is-editing { box-shadow: 0 0 0 2px var(--honey) inset; background: #fff8e6; }
+    .mday.is-pad { visibility: hidden; }
+
+    .mday__foot { display: grid; gap: 6px; width: 100%; }
+    .mday__chip {
+      justify-self: start;
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: var(--honey-2); color: var(--honey-ink);
+      font: 600 10.5px/1.2 var(--font-body);
+      font-variant-numeric: tabular-nums;
+    }
+    .mday__chip--focus { background: var(--night); color: var(--night-ink); }
+    .mday__chip--meeting { background: #f5d2b7; color: #5a2a0b; }
+    .mday__chip--away, .mday__chip--offline { background: #1d1d1b14; color: var(--dim); }
+    .mday__chip--live::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--ok); animation: pulse 1.6s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: .25; } }
+
+    .mday__bar { display: flex; gap: 1px; width: 100%; height: 5px; border-radius: 99px; overflow: hidden; background: #1d1d1b0d; }
+    .mday__bar i { flex: var(--h) 0 0; background: var(--c); transition: flex-grow .5s var(--ease); }
+
+    .month__hint { margin-top: 12px; color: var(--faint); font-size: 12px; }
+
+    /* ---------- Day editor ---------- */
+    .editor {
+      position: absolute; z-index: 10;
+      width: 272px;
+      padding: 14px;
+      border-radius: 20px;
+      background: var(--night);
+      color: var(--night-ink);
+      box-shadow: 0 30px 60px -24px #0000008c;
+    }
+    .editor[hidden] { display: none; }
+    .editor.is-sheet { position: fixed; left: 12px; right: 12px; bottom: 12px; top: auto !important; width: auto; }
+    .editor :focus-visible { outline-color: var(--honey); }
+
+    .ed__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    .ed__title { font: 400 17px/1.2 var(--font-display); }
+    .ed__total { color: var(--night-dim); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .ed__close { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; color: var(--night-dim); }
+    .ed__close:hover { color: var(--night-ink); background: #ffffff12; }
+
+    .ed__rows { display: grid; gap: 4px; margin-bottom: 10px; }
+    .ed__row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+    .ed__name { flex: 1; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .ed__row .dot--focus { box-shadow: 0 0 0 1.5px var(--night-ink); }
+    .ed__val { width: 44px; text-align: center; font: 300 18px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+    .ed__row button {
+      width: 30px; height: 30px; flex: none;
+      display: grid; place-items: center;
+      border-radius: 50%;
+      background: var(--night-2);
+      transition: background-color .25s;
+    }
+    .ed__row button .ico { width: 15px; height: 15px; }
+    .ed__row button:hover:not(:disabled) { background: #45443f; }
+    .ed__row button:disabled { opacity: .3; }
+
+    .chip-btn {
+      width: 100%;
+      padding: 8px 0;
+      border-radius: 999px;
+      background: var(--night-2);
+      font-size: 12px; font-weight: 500;
+      transition: background-color .25s;
+    }
+    .chip-btn:hover { background: #45443f; }
+    .ed__note { margin-top: 10px; color: var(--night-dim); font-size: 11.5px; }
+    .ed__note:empty { display: none; }
+
+    /* ---------- Toast ---------- */
+    .toast {
+      position: fixed; left: 0; right: 0; bottom: 26px; z-index: 30;
+      width: fit-content; max-width: calc(100vw - 32px); margin: 0 auto;
+      padding: 12px 18px; border-radius: 999px;
+      background: var(--night); color: var(--night-ink);
+      font-size: 13px; font-weight: 500;
+      box-shadow: 0 20px 40px -20px #0009;
+      opacity: 0; transform: translateY(18px) scale(.96);
+      pointer-events: none;
+      transition: opacity .3s, transform .45s var(--back);
+    }
+    .toast.is-on { opacity: 1; transform: none; }
+
+    @media (max-width: 720px) {
+      .now { flex-wrap: wrap; border-radius: 20px; padding: 10px; gap: 8px; }
+      .now__lab { width: 100%; padding-left: 4px; }
+      .status-set { width: 100%; overflow-x: auto; scrollbar-width: none; }
+      .status-set::-webkit-scrollbar { display: none; }
+      .now__time { margin-left: 4px; }
+      .rail { flex-wrap: wrap; row-gap: 12px; }
+    }
+
+    @media (max-width: 640px) {
+      .st-card { padding: 16px; }
+      .month { gap: 4px; grid-auto-rows: minmax(58px, auto); }
+      .mday { min-height: 58px; padding: 5px; border-radius: 10px; gap: 4px; }
+      .mday__top .dot { display: none; }
+      .mday__chip { padding: 2px 5px; font-size: 9.5px; }
+      .mday__chip--live::before { display: none; }
+      .mday__bar { height: 4px; }
+    }
+
+    @media (max-width: 480px) {
+      .rail { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .seg { min-width: 0; }
+      .status-set {
+        -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), #0000);
+        mask-image: linear-gradient(90deg, #000 calc(100% - 24px), #0000);
+      }
+    }
+
+    @media (pointer: coarse) {
+      .pill-btn { min-height: 44px; }
+      .pill-btn--icon { width: 44px; }
+      .st { padding: 11px 14px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .seg, .toast, .status-set__pill, .mday__bar i { transition: none; }
+      .mday__chip--live::before { animation: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m14 7-5 5 5 5"/></symbol>
+    <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m10 7 5 5-5 5"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M6 12h12"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  </svg>
+
+  <!--
+    data-seed  fill past days (last 12 months) with sample status hours so the calendar isn't empty
+  -->
+  <section class="st-card" data-status-tracker data-seed aria-label="Monthly status">
+    <header class="month__head">
+      <p class="month__sum" aria-live="polite">
+        <span class="big" data-online>0.0</span><span class="month__unit">hrs online</span> / <span class="big" data-focus>0%</span><span class="month__unit">focus</span>
+      </p>
+      <div class="month__nav">
+        <button class="pill-btn pill-btn--icon" type="button" data-prev aria-label="Previous month"><svg class="ico"><use href="#i-chev-l"/></svg></button>
+        <button class="pill-btn pill-btn--label" type="button" data-today><span class="pill-btn__txt" data-label></span></button>
+        <button class="pill-btn pill-btn--icon" type="button" data-next aria-label="Next month"><svg class="ico"><use href="#i-chev-r"/></svg></button>
+      </div>
+    </header>
+
+    <div class="now" role="group" aria-label="Your status now">
+      <span class="now__lab">Now</span>
+      <div class="status-set" data-switcher>
+        <span class="status-set__pill" aria-hidden="true"></span>
+      </div>
+      <span class="now__time" data-elapsed aria-live="off"></span>
+    </div>
+
+    <div class="rail" data-rail aria-label="How the month's time splits across statuses"></div>
+
+    <div class="month" data-grid></div>
+    <p class="month__hint">Set your status above and today fills in as you work. Click any past day to adjust its hours.</p>
+
+    <div class="editor" role="dialog" aria-labelledby="ed-title" hidden>
+      <header class="ed__head">
+        <div>
+          <h3 class="ed__title" id="ed-title"></h3>
+          <p class="ed__total" data-total></p>
+        </div>
+        <button class="ed__close" type="button" data-close aria-label="Close"><svg class="ico"><use href="#i-x"/></svg></button>
+      </header>
+      <div class="ed__rows" data-rows></div>
+      <button class="chip-btn" type="button" data-clear>Clear day</button>
+      <p class="ed__note" data-note></p>
+    </div>
+  </section>
+
+  <div class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+  (() => {
+    const root = document.querySelector('[data-status-tracker]');
+    if (!root) return;
+
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    const SEED = root.hasAttribute('data-seed');
+    const LOG_KEY = 'status-tracker:log';
+    const LIVE_KEY = 'status-tracker:live';
+    const STEP = 0.5;
+    const NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    // Online statuses count towards "hrs online"; Offline pauses live tracking.
+    const STATUSES = [
+      { id: 'active', name: 'Active', online: true },
+      { id: 'focus', name: 'Focus', online: true },
+      { id: 'meeting', name: 'In a meeting', online: true },
+      { id: 'away', name: 'Away' },
+      { id: 'offline', name: 'Offline' },
+    ];
+    const IDS = STATUSES.map((s) => s.id);
+    const nameOf = (id) => STATUSES.find((s) => s.id === id).name;
+    const dot = (id) => `<i class="dot dot--${id}" style="--c:var(--st-${id})"></i>`;
+
+    const $ = (s) => root.querySelector(s);
+    const grid = $('[data-grid]');
+    const label = $('[data-label]');
+    const todayBtn = $('[data-today]');
+    const onlineEl = $('[data-online]');
+    const focusEl = $('[data-focus]');
+    const switcher = $('[data-switcher]');
+    const pill = $('.status-set__pill');
+    const elapsedEl = $('[data-elapsed]');
+    const rail = $('[data-rail]');
+    const editor = $('.editor');
+    const toast = document.querySelector('.toast');
+
+    /* ---------- Dates ---------- */
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const parse = (k) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+    const TODAY = iso(today);
+    const isWeekend = (d) => d.getDay() === 0 || d.getDay() === 6;
+    const sameMonth = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+    let view = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    /* ---------- Storage ---------- */
+    const read = (k, fb) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? fb; } catch { return fb; } };
+    const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+    let log = read(LOG_KEY, {});                                  // { 'YYYY-MM-DD': { active, focus, … } }
+    let live = read(LIVE_KEY, { status: 'offline', since: null, date: TODAY });
+    const saveLog = () => write(LOG_KEY, log);
+    const saveLive = () => write(LIVE_KEY, live);
+
+    const zero = () => Object.fromEntries(IDS.map((id) => [id, 0]));
+    const round = (v) => Math.round(v * 100) / 100;
+
+    // Sample mix for past days (last 12 months), deterministic per date.
+    function seedFor(d) {
+      if (!SEED || d >= today || today - d > 366 * 864e5) return null;
+      let s = (d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()) % 2147483647;
+      const rnd = () => ((s = (s * 16807) % 2147483647), (s - 1) / 2147483646);
+      rnd(); rnd();
+      const half = (max) => Math.round(rnd() * max * 2) / 2;
+      if (isWeekend(d)) return rnd() < 0.25 ? { ...zero(), active: 0.5 + half(2) } : null;
+      if (rnd() < 0.05) return { ...zero(), offline: 8 };
+      const focus = 1 + half(3), meeting = 0.5 + half(2.5), away = 0.5 + half(1);
+      const offline = rnd() < 0.3 ? 0.5 : 0;
+      const active = Math.max(1, 8.5 - focus - meeting) + half(1);
+      return { active, focus, meeting, away, offline };
+    }
+
+    /* ---------- Live status ---------- */
+    // Fold the time since the last status change into the log, splitting at midnight.
+    function commit() {
+      const now = Date.now();
+      if (live.status !== 'offline' && live.since) {
+        let from = live.since;
+        while (from < now) {
+          const day = new Date(from); day.setHours(0, 0, 0, 0);
+          const next = new Date(day); next.setDate(day.getDate() + 1);
+          const to = Math.min(now, +next);
+          const k = iso(day);
+          const base = { ...zero(), ...(log[k] ?? seedFor(day) ?? {}) };
+          base[live.status] = round(base[live.status] + (to - from) / 36e5);
+          log[k] = base;
+          from = to;
+        }
+        live.since = now;
+        saveLog();
+      }
+      live.date = TODAY;
+      saveLive();
+    }
+
+    const liveHours = () => (live.status !== 'offline' && live.since ? (Date.now() - live.since) / 36e5 : 0);
+
+    function entryFor(d) {
+      const k = iso(d);
+      if (d > today) return null;
+      const base = log[k] ?? seedFor(d);
+      if (k !== TODAY) return base;
+      const e = { ...zero(), ...(base || {}) };
+      if (live.status !== 'offline') e[live.status] += liveHours();
+      return e;
+    }
+
+    const online = (e) => (e ? e.active + e.focus + e.meeting : 0);
+    const totalOf = (e) => (e ? IDS.reduce((s, id) => s + (e[id] || 0), 0) : 0);
+    const dominant = (e) => (e && totalOf(e) ? IDS.reduce((a, b) => ((e[b] || 0) > (e[a] || 0) ? b : a)) : null);
+
+    function monthStats() {
+      const n = new Date(view.getFullYear(), view.getMonth() + 1, 0).getDate();
+      const sum = zero();
+      for (let i = 1; i <= n; i++) {
+        const e = entryFor(new Date(view.getFullYear(), view.getMonth(), i));
+        if (e) IDS.forEach((id) => { sum[id] += e[id] || 0; });
+      }
+      return sum;
+    }
+
+    /* ---------- Rendering ---------- */
+    const longDate = (d) => d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    const shortDate = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const h1 = (v) => (Math.round(v * 10) / 10).toFixed(1);
+
+    function describe(d, e) {
+      if (d > today) return 'Upcoming';
+      if (!e || !totalOf(e)) return 'Nothing logged';
+      const parts = STATUSES.filter((s) => e[s.id] >= 0.05).map((s) => `${h1(e[s.id])} ${s.name.toLowerCase()}`);
+      return `${h1(online(e))} hours online — ${parts.join(', ')}`;
+    }
+
+    function inner(d, e) {
+      const k = iso(d);
+      const dom = dominant(e);
+      const isLive = k === TODAY && live.status !== 'offline';
+      // Days with no online time say what they were (Away / Offline) instead of "0.0h".
+      const chipText = e && online(e) >= 0.05 ? `${h1(online(e))}h` : dom ? nameOf(dom) : '';
+      const chip = e && totalOf(e)
+        ? `<span class="mday__chip mday__chip--${dom}${isLive ? ' mday__chip--live' : ''}">${chipText}</span>`
+        : '';
+      const bar = e && totalOf(e)
+        ? `<span class="mday__bar" aria-hidden="true">${IDS.filter((id) => e[id] > 0).map((id) => `<i style="--h:${e[id].toFixed(3)};--c:var(--st-${id})"></i>`).join('')}</span>`
+        : '';
+      return `<span class="mday__top"><span class="mday__n">${d.getDate()}</span>${dom ? dot(dom) : ''}</span>
+        <span class="mday__foot">${chip}${bar}</span>`;
+    }
+
+    function cellHTML(d, tabbable) {
+      const k = iso(d), e = entryFor(d), future = d > today;
+      const cls = ['mday', isWeekend(d) && 'is-off', k === TODAY && 'is-today', future && 'is-future'].filter(Boolean).join(' ');
+      return `<button class="${cls}" type="button" data-date="${k}" tabindex="${tabbable ? 0 : -1}"
+        aria-label="${longDate(d)}: ${describe(d, e)}"${future ? ' aria-disabled="true"' : ''}${k === TODAY ? ' aria-current="date"' : ''}>
+        ${inner(d, e)}</button>`;
+    }
+
+    function renderGrid(focusKey) {
+      const y = view.getFullYear(), m = view.getMonth();
+      const n = new Date(y, m + 1, 0).getDate();
+      const offset = (new Date(y, m, 1).getDay() + 6) % 7;
+      const tabKey = focusKey || (sameMonth(view, today) ? TODAY : iso(new Date(y, m, 1)));
+
+      grid.innerHTML =
+        NAMES.map((d) => `<span class="month__dname" aria-hidden="true">${d}</span>`).join('') +
+        '<span class="mday is-pad" aria-hidden="true"></span>'.repeat(offset) +
+        Array.from({ length: n }, (_, i) => {
+          const d = new Date(y, m, i + 1);
+          return cellHTML(d, iso(d) === tabKey);
+        }).join('');
+
+      label.textContent = view.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const onToday = sameMonth(view, today);
+      todayBtn.setAttribute('aria-disabled', String(onToday));
+      todayBtn.setAttribute('aria-label', onToday ? `${label.textContent}, this month` : `${label.textContent}. Back to this month`);
+      todayBtn.title = onToday ? '' : 'Back to this month';
+    }
+
+    function refreshCell(k, pop = false) {
+      const cell = grid.querySelector(`[data-date="${k}"]`);
+      if (!cell) return;
+      const d = parse(k), e = entryFor(d);
+      cell.innerHTML = inner(d, e);
+      cell.setAttribute('aria-label', `${longDate(d)}: ${describe(d, e)}`);
+      const chip = cell.querySelector('.mday__chip');
+      if (pop && chip && !reduce.matches) {
+        chip.animate([{ transform: 'scale(.6)', opacity: .4 }, { transform: 'scale(1)', opacity: 1 }],
+          { duration: 420, easing: 'cubic-bezier(.34,2.2,.64,1)' });
+      }
+    }
+
+    /* ---------- Rail ---------- */
+    rail.innerHTML = STATUSES.map((s) => `
+      <div class="seg seg--${s.id}" style="--w:20;--c:var(--st-${s.id})">
+        <span class="seg__label">${s.name}</span>
+        <span class="seg__bar"><i class="seg__fill"></i><b class="seg__num">0%</b></span>
+      </div>`).join('');
+    const segs = [...rail.querySelectorAll('.seg')];
+
+    function countTo(el, to, fmt, dur = 900) {
+      const from = el._v ?? 0;
+      cancelAnimationFrame(el._raf);
+      if (reduce.matches || !dur || Math.abs(from - to) < 1e-6) { el._v = to; el.textContent = fmt(to); return; }
+      const t0 = performance.now();
+      el._raf = requestAnimationFrame(function step(now) {
+        const p = Math.min(1, (now - t0) / dur);
+        el._v = from + (to - from) * (1 - Math.pow(1 - p, 3));
+        el.textContent = fmt(el._v);
+        if (p < 1) el._raf = requestAnimationFrame(step);
+      });
+    }
+
+    function updateTotals(dur = 900) {
+      const s = monthStats();
+      const on = online(s);
+      const total = totalOf(s);
+      countTo(onlineEl, on, h1, dur);
+      countTo(focusEl, on ? (s.focus / on) * 100 : 0, (v) => Math.round(v) + '%', dur);
+      segs.forEach((seg, i) => {
+        const pct = total ? (s[IDS[i]] / total) * 100 : 0;
+        seg.style.setProperty('--w', Math.max(1, Math.round(pct)));
+        seg.querySelector('.seg__num').textContent = Math.round(pct) + '%';
+        seg.setAttribute('aria-label', `${STATUSES[i].name}: ${h1(s[IDS[i]])} hours, ${Math.round(pct)}%`);
+      });
+    }
+
+    /* ---------- Switcher ---------- */
+    switcher.insertAdjacentHTML('beforeend', STATUSES.map((s) =>
+      `<button class="st" type="button" data-status="${s.id}" aria-pressed="false">${dot(s.id)}${s.name}</button>`).join(''));
+    const stBtns = [...switcher.querySelectorAll('.st')];
+
+    function movePill(animate = true) {
+      const b = stBtns.find((x) => x.dataset.status === live.status);
+      if (!b) return;
+      if (!animate) pill.style.transition = 'none';
+      pill.style.width = `${b.offsetWidth}px`;
+      pill.style.transform = `translateX(${b.offsetLeft}px)`;
+      if (!animate) { pill.getBoundingClientRect(); pill.style.transition = ''; }
+    }
+
+    function syncSwitcher(animate = true) {
+      stBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.status === live.status)));
+      movePill(animate);
+      tickElapsed();
+    }
+
+    const clock = (ms) => {
+      const s = Math.max(0, Math.floor(ms / 1000));
+      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+      return h ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`;
+    };
+    function tickElapsed() {
+      elapsedEl.innerHTML = live.status === 'offline' || !live.since
+        ? 'Tracking paused'
+        : `${nameOf(live.status)} for <b>${clock(Date.now() - live.since)}</b>`;
+    }
+
+    function setStatus(id) {
+      if (id === live.status) return;
+      commit();
+      live.status = id;
+      live.since = id === 'offline' ? null : Date.now();
+      saveLive();
+      syncSwitcher();
+      if (sameMonth(view, today)) { refreshCell(TODAY, true); updateTotals(500); }
+      if (editing === TODAY) syncEditor();
+      say(id === 'offline' ? 'You’re offline — tracking paused' : `Status set to ${nameOf(id)}`);
+    }
+
+    switcher.addEventListener('click', (e) => {
+      const b = e.target.closest('.st');
+      if (b) setStatus(b.dataset.status);
+    });
+    switcher.addEventListener('keydown', (e) => {
+      const step = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+      const i = stBtns.indexOf(e.target);
+      if (!step || i < 0) return;
+      e.preventDefault();
+      stBtns[(i + step + stBtns.length) % stBtns.length].focus();
+    });
+
+    /* ---------- Motion ---------- */
+    const EASE = 'cubic-bezier(.22,1,.36,1)';
+
+    function enter(dir = 0) {
+      if (reduce.matches) return;
+      grid.querySelectorAll('.mday:not(.is-pad)').forEach((c, i) => c.animate(
+        [{ opacity: 0, transform: `translateX(${dir * 14}px) scale(.94)` }, { opacity: 1, transform: 'none' }],
+        { duration: 450, delay: i * 12, easing: EASE, fill: 'backwards' }
+      ));
+      grid.querySelectorAll('.mday__bar').forEach((b, i) => b.animate(
+        [{ transform: 'scaleX(0)', transformOrigin: '0 50%' }, { transform: 'scaleX(1)', transformOrigin: '0 50%' }],
+        { duration: 600, delay: 200 + i * 12, easing: EASE, fill: 'backwards' }
+      ));
+      grid.querySelectorAll('.mday__chip').forEach((c, i) => c.animate(
+        [{ opacity: 0, transform: 'scale(.4)' }, { opacity: 1, transform: 'scale(1)' }],
+        { duration: 450, delay: 220 + i * 12, easing: 'cubic-bezier(.34,2.5,.64,1)', fill: 'backwards' }
+      ));
+      segs.forEach((seg, i) => seg.querySelector('.seg__fill').animate(
+        [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }],
+        { duration: 800, delay: i * 70, easing: EASE, fill: 'backwards' }
+      ));
+      label.animate([{ opacity: 0, transform: `translateX(${dir * 14}px)` }, { opacity: 1, transform: 'none' }],
+        { duration: 400, easing: EASE });
+    }
+
+    let busy = false;
+    async function go(dir, focusKey) {
+      if (busy) return;
+      busy = true;
+      closeEditor(false);
+      if (!reduce.matches) {
+        await Promise.all([
+          grid.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: `translateX(${-dir * 18}px)` }],
+            { duration: 180, easing: 'ease-in', fill: 'forwards' }).finished,
+          label.animate([{ opacity: 1 }, { opacity: 0, transform: `translateX(${-dir * 10}px)` }],
+            { duration: 160, easing: 'ease-in', fill: 'forwards' }).finished,
+        ]);
+      }
+      view = new Date(view.getFullYear(), view.getMonth() + dir, 1);
+      renderGrid(focusKey);
+      grid.getAnimations().forEach((a) => a.cancel());
+      label.getAnimations().forEach((a) => a.cancel());
+      updateTotals();
+      enter(dir);
+      if (focusKey) grid.querySelector(`[data-date="${focusKey}"]`)?.focus();
+      busy = false;
+    }
+
+    $('[data-prev]').addEventListener('click', () => go(-1));
+    $('[data-next]').addEventListener('click', () => go(1));
+    todayBtn.addEventListener('click', () => {
+      if (sameMonth(view, today)) return;
+      const dir = view < today ? 1 : -1;
+      view = new Date(today.getFullYear(), today.getMonth() - dir, 1);
+      go(dir);
+    });
+
+    /* ---------- Keyboard in the grid ---------- */
+    grid.addEventListener('keydown', (e) => {
+      const cell = e.target.closest('.mday[data-date]');
+      const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
+      if (!cell || !step) return;
+      e.preventDefault();
+      const d = parse(cell.dataset.date);
+      d.setDate(d.getDate() + step);
+      const k = iso(d);
+      const target = grid.querySelector(`[data-date="${k}"]`);
+      if (target) target.focus();
+      else go(d < view ? -1 : 1, k);
+    });
+    grid.addEventListener('focusin', (e) => {
+      const cell = e.target.closest('.mday[data-date]');
+      if (!cell) return;
+      grid.querySelectorAll('.mday[data-date]').forEach((c) => { c.tabIndex = c === cell ? 0 : -1; });
+    });
+
+    /* ---------- Day editor ---------- */
+    let editing = null;
+    const rows = $('[data-rows]');
+    rows.innerHTML = STATUSES.map((s) => `
+      <div class="ed__row" data-row="${s.id}">
+        <span class="ed__name">${dot(s.id)}${s.name}</span>
+        <button type="button" data-id="${s.id}" data-step="-1" aria-label="${s.name}: half an hour less"><svg class="ico"><use href="#i-minus"/></svg></button>
+        <output class="ed__val" data-val="${s.id}">0.0</output>
+        <button type="button" data-id="${s.id}" data-step="1" aria-label="${s.name}: half an hour more"><svg class="ico"><use href="#i-plus"/></svg></button>
+      </div>`).join('');
+
+    function syncEditor() {
+      if (!editing) return;
+      const d = parse(editing), e = entryFor(d) || zero();
+      const total = totalOf(e);
+      $('#ed-title').textContent = shortDate(d);
+      $('[data-total]').textContent = `${h1(online(e))} h online · ${h1(total)} h logged`;
+      IDS.forEach((id) => {
+        rows.querySelector(`[data-val="${id}"]`).textContent = h1(e[id] || 0);
+        rows.querySelector(`[data-id="${id}"][data-step="-1"]`).disabled = (e[id] || 0) <= 0;
+        rows.querySelector(`[data-id="${id}"][data-step="1"]`).disabled = total + STEP > 24;
+      });
+      $('[data-note]').textContent = editing === TODAY && live.status !== 'offline'
+        ? `Still counting into ${nameOf(live.status)} while your status is set.`
+        : '';
+    }
+
+    function place(cell) {
+      if (matchMedia('(max-width: 520px)').matches) {
+        editor.classList.add('is-sheet');
+        editor.style.left = editor.style.top = '';
+        return 'bottom';
+      }
+      editor.classList.remove('is-sheet');
+      const c = root.getBoundingClientRect(), r = cell.getBoundingClientRect();
+      const w = editor.offsetWidth, h = editor.offsetHeight;
+      const left = Math.max(12, Math.min(c.width - w - 12, r.left - c.left + r.width / 2 - w / 2));
+      let top = r.bottom - c.top + 8, origin = 'top';
+      if (top + h > c.height + 40) { top = r.top - c.top - h - 8; origin = 'bottom'; }
+      editor.style.left = `${left}px`;
+      editor.style.top = `${top}px`;
+      return origin;
+    }
+
+    function openEditor(cell) {
+      grid.querySelector('.is-editing')?.classList.remove('is-editing');
+      editing = cell.dataset.date;
+      if (editing === TODAY) commit(); // fold live time in so edits start from the true figure
+      cell.classList.add('is-editing');
+      editor.hidden = false;
+      syncEditor();
+      const origin = place(cell);
+      if (!reduce.matches) {
+        editor.animate(
+          [{ opacity: 0, transform: `translateY(${origin === 'top' ? -6 : 6}px) scale(.95)` }, { opacity: 1, transform: 'none' }],
+          { duration: 320, easing: 'cubic-bezier(.34,1.6,.64,1)' }
+        );
+      }
+      editor.querySelector('[data-step="1"]:not(:disabled)')?.focus({ preventScroll: true });
+    }
+
+    function closeEditor(returnFocus = true) {
+      if (editor.hidden) return;
+      const cell = grid.querySelector(`[data-date="${editing}"]`);
+      cell?.classList.remove('is-editing');
+      editor.hidden = true;
+      editing = null;
+      if (returnFocus) cell?.focus();
+    }
+
+    function edit(k, fn) {
+      if (k === TODAY) commit();
+      const d = parse(k);
+      const e = { ...zero(), ...(log[k] ?? seedFor(d) ?? {}) };
+      fn(e);
+      IDS.forEach((id) => { e[id] = round(Math.max(0, e[id])); });
+      log[k] = e;
+      saveLog();
+      refreshCell(k, true);
+      updateTotals(500);
+      syncEditor();
+    }
+
+    grid.addEventListener('click', (e) => {
+      const cell = e.target.closest('.mday[data-date]');
+      if (!cell || cell.getAttribute('aria-disabled') === 'true') return;
+      if (editing === cell.dataset.date) closeEditor();
+      else openEditor(cell);
+    });
+
+    editor.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b || b.disabled || !editing) return;
+      if (b.matches('[data-close]')) return closeEditor();
+      if (b.matches('[data-clear]')) return edit(editing, (x) => IDS.forEach((id) => { x[id] = 0; }));
+      if (b.dataset.id) {
+        const id = b.dataset.id, dir = +b.dataset.step;
+        // Step to the next half hour, so live minutes snap onto the grid.
+        edit(editing, (x) => {
+          const v = x[id];
+          x[id] = dir > 0 ? Math.floor(v / STEP + 1e-6) * STEP + STEP : Math.ceil(v / STEP - 1e-6) * STEP - STEP;
+        });
+      }
+    });
+
+    document.addEventListener('pointerdown', (e) => {
+      if (editor.hidden || editor.contains(e.target) || e.target.closest('.mday[data-date]')) return;
+      closeEditor(false);
+    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeEditor(); });
+
+    let lastW = innerWidth;
+    addEventListener('resize', () => {
+      movePill(false);
+      if (innerWidth === lastW) return;
+      lastW = innerWidth;
+      const cell = editing && grid.querySelector(`[data-date="${editing}"]`);
+      if (cell) place(cell);
+    });
+
+    let toastTimer;
+    function say(msg) {
+      toast.textContent = msg;
+      toast.classList.add('is-on');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('is-on'), 2400);
+    }
+
+    /* ---------- Ticking ---------- */
+    setInterval(tickElapsed, 1000);
+    setInterval(() => {
+      if (live.status === 'offline' || !sameMonth(view, today)) return;
+      refreshCell(TODAY);
+      updateTotals(300);
+      if (editing === TODAY) syncEditor();
+    }, 30000);
+    addEventListener('storage', (e) => {
+      if (e.key === LIVE_KEY) { live = read(LIVE_KEY, live); syncSwitcher(); }
+      if (e.key === LOG_KEY) log = read(LOG_KEY, log);
+      if (e.key === LIVE_KEY || e.key === LOG_KEY) {
+        if (sameMonth(view, today)) refreshCell(TODAY);
+        updateTotals(300);
+      }
+    });
+
+    /* ---------- Start ---------- */
+    if (live.date !== TODAY) commit(); // a status left on overnight is split across the days
+    renderGrid();
+    syncSwitcher(false);
+    updateTotals(reduce.matches ? 0 : 1200);
+    enter(0);
+    document.fonts?.ready.then(() => movePill(false));
+  })();
+  </script>
+</body>
+</html>
