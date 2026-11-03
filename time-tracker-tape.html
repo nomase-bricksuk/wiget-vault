@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tape time tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1d1d1b;
+      --honey: #f6c343;
+      --honey-ink: #5a4306;
+      --night: #252523;
+      --night-2: #2f2e2b;
+      --night-3: #3a3935;
+      --n-ink: #f4f2ec;
+      --n-dim: #a9a69c;
+      --n-faint: #85827a;
+      --n-line: #ffffff14;
+      --n-line-2: #ffffff26;
+      --ok: #6fbf86;
+      --font-display: "Outfit", system-ui, sans-serif;
+      --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+      --back: cubic-bezier(.34, 1.7, .64, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      place-items: center;
+      padding: 16px;
+      color: var(--ink);
+      font: 400 14px/1.45 var(--font-body);
+      -webkit-font-smoothing: antialiased;
+      background:
+        radial-gradient(90% 70% at 100% 100%, #f8d66e8c, #f8d66e00 70%),
+        radial-gradient(60% 50% at 88% 0%, #fae4a080, #fae4a000 70%),
+        linear-gradient(160deg, #f5f3ee, #f2efe6 55%, #fbeec0);
+    }
+
+    button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
+    button:disabled { cursor: default; opacity: .35; }
+    h2, p, ul { margin: 0; }
+    ul { padding: 0; list-style: none; }
+    :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+    .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .ico {
+      width: 18px; height: 18px; flex: none;
+      fill: none; stroke: currentColor; stroke-width: 1.7px;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    /* ---------- Card ---------- */
+    .tt2 {
+      position: relative;
+      isolation: isolate;
+      width: min(100%, 460px);
+      padding: 20px;
+      border-radius: 28px;
+      background: linear-gradient(180deg, #2c2b28, #222120);
+      color: var(--n-ink);
+      box-shadow: 0 1px 0 #ffffff12 inset, 0 0 0 1px #ffffff0a inset, 0 30px 60px -30px #1d1b16b3;
+      overflow: hidden;
+    }
+    .tt2::before {
+      content: ""; position: absolute; inset: -40% -20% auto; height: 70%; z-index: -1;
+      background: radial-gradient(closest-side, #f6c3432e, #f6c34300);
+      opacity: 0;
+      transition: opacity .8s var(--ease);
+    }
+    .tt2.is-running::before { opacity: 1; }
+    .tt2 :focus-visible { outline-color: var(--honey); }
+
+    .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .title { font: 400 20px/1.2 var(--font-display); letter-spacing: -.01em; }
+    .state {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 6px 11px;
+      border-radius: 999px;
+      background: #ffffff0d;
+      box-shadow: 0 0 0 1px var(--n-line) inset;
+      color: var(--n-dim);
+      font-size: 12px; font-weight: 500;
+    }
+    .state i { width: 7px; height: 7px; border-radius: 50%; background: var(--n-faint); }
+    .tt2.is-running .state { color: var(--n-ink); }
+    .tt2.is-running .state i { background: var(--ok); box-shadow: 0 0 0 3px #6fbf862e; animation: pulse 1.6s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: .35; } }
+
+    /* ---------- Projects ---------- */
+    .proj {
+      position: relative;
+      display: flex; gap: 2px;
+      margin-top: 16px;
+      padding: 3px;
+      border-radius: 999px;
+      background: #ffffff0a;
+      box-shadow: 0 0 0 1px var(--n-line) inset;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .proj::-webkit-scrollbar { display: none; }
+    .proj__pill {
+      position: absolute; top: 3px; bottom: 3px; left: 0; width: 0;
+      border-radius: 999px;
+      background: var(--night-3);
+      box-shadow: 0 0 0 1px var(--n-line-2) inset;
+      transition: transform .45s var(--ease), width .45s var(--ease);
+    }
+    .proj button {
+      position: relative; z-index: 1;
+      flex: 1 0 auto;
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      color: var(--n-dim);
+      font-size: 12.5px; font-weight: 500;
+      white-space: nowrap;
+      transition: color .3s var(--ease);
+    }
+    .proj button:hover, .proj button[aria-checked="true"] { color: var(--n-ink); }
+    .dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--c); }
+
+    /* ---------- Readout ---------- */
+    .read { margin-top: 22px; text-align: center; }
+    .clock {
+      display: inline-flex; align-items: baseline; justify-content: center;
+      font: 200 68px/1 var(--font-display);
+      letter-spacing: -.03em;
+      font-variant-numeric: tabular-nums;
+    }
+    .clock__sec { display: inline-flex; align-items: baseline; color: var(--n-dim); font-size: 30px; font-weight: 300; margin-left: 2px; }
+    .sep { width: .32em; text-align: center; }
+    .tt2.is-running .clock > .sep { animation: blink 2s steps(1) infinite; }
+    @keyframes blink { 50% { opacity: .35; } }
+    .dg { display: inline-block; height: 1em; overflow: hidden; }
+    .dg__col { display: flex; flex-direction: column; transition: transform .5s var(--ease); }
+    .dg__col span { height: 1em; line-height: 1; }
+    .tt2.is-scrub .dg__col { transition: none; }
+    .sub { margin-top: 8px; color: var(--n-dim); font-size: 12.5px; font-variant-numeric: tabular-nums; min-height: 18px; }
+    .sub b { color: var(--n-ink); font-weight: 500; }
+
+    /* ---------- Tape ---------- */
+    .tape {
+      position: relative;
+      height: 66px;
+      margin: 18px -20px 0;
+      cursor: default;
+    }
+    .tape canvas {
+      display: block; width: 100%; height: 100%;
+      -webkit-mask-image: linear-gradient(90deg, #0000, #000 22%, #000 78%, #0000);
+      mask-image: linear-gradient(90deg, #0000, #000 22%, #000 78%, #0000);
+    }
+    .tape__needle {
+      position: absolute; left: 50%; top: 14px; bottom: 2px;
+      width: 2px; margin-left: -1px;
+      border-radius: 2px;
+      background: var(--honey);
+      box-shadow: 0 0 12px #f6c34380;
+      pointer-events: none;
+    }
+    .tape__needle::before {
+      content: ""; position: absolute; top: -7px; left: 50%;
+      width: 10px; height: 7px; margin-left: -5px;
+      background: var(--honey);
+      clip-path: polygon(0 0, 100% 0, 50% 100%);
+    }
+
+    /* ---------- Controls ---------- */
+    .ctrls { display: flex; gap: 8px; margin-top: 18px; }
+    .go {
+      flex: 1;
+      display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+      height: 50px;
+      border-radius: 999px;
+      background: var(--honey); color: var(--honey-ink);
+      font-size: 14px; font-weight: 600;
+      transition: background-color .35s var(--ease), color .35s var(--ease), box-shadow .35s;
+    }
+    .go .ico { width: 17px; height: 17px; }
+    .go .ico--play { fill: currentColor; stroke-width: 1.2px; }
+    .go .ico--pause, .go[aria-pressed="true"] .ico--play { display: none; }
+    .go[aria-pressed="true"] .ico--pause { display: block; }
+    .go[aria-pressed="true"] { background: #ffffff10; color: var(--n-ink); box-shadow: 0 0 0 1px var(--n-line-2) inset; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      height: 50px; padding: 0 18px;
+      border-radius: 999px;
+      background: #ffffff0a;
+      box-shadow: 0 0 0 1px var(--n-line) inset;
+      font-size: 13px; font-weight: 500;
+      transition: background-color .3s;
+    }
+    .btn:hover:not(:disabled) { background: #ffffff14; }
+    .btn--icon { width: 50px; padding: 0; }
+    .btn .ico { width: 17px; height: 17px; }
+
+    /* ---------- Today timeline ---------- */
+    .day { margin-top: 22px; }
+    .day__top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 12px; }
+    .day__lab { color: var(--n-dim); font-weight: 500; }
+    .day__goal { color: var(--n-dim); font-variant-numeric: tabular-nums; }
+    .day__goal b { color: var(--n-ink); font-weight: 500; }
+    .goal { height: 3px; margin-bottom: 10px; border-radius: 3px; background: #ffffff10; overflow: hidden; }
+    .goal i { display: block; height: 100%; width: 100%; border-radius: inherit; background: var(--honey); transform-origin: 0 50%; transform: scaleX(var(--p, 0)); transition: transform .6s var(--ease); }
+
+    .bar {
+      position: relative;
+      height: 30px;
+      border-radius: 10px;
+      background: repeating-linear-gradient(90deg, #ffffff08 0 1px, transparent 1px calc(100% / var(--hrs, 12)));
+      box-shadow: 0 0 0 1px var(--n-line) inset;
+    }
+    .blk {
+      position: absolute; top: 5px; bottom: 5px;
+      min-width: 3px;
+      border-radius: 5px;
+      background: var(--c);
+      opacity: .92;
+      transition: opacity .25s;
+    }
+    .blk.is-live { background: repeating-linear-gradient(-55deg, var(--c) 0 6px, color-mix(in srgb, var(--c) 72%, #000) 6px 9px); }
+    .bar:hover .blk:not(:hover) { opacity: .45; }
+    .now { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 1.5px solid var(--n-ink); pointer-events: none; }
+    .now::before { content: ""; position: absolute; top: -3px; left: -4px; width: 6.5px; height: 6.5px; border-radius: 50%; background: var(--n-ink); }
+    .axis { position: relative; height: 16px; margin-top: 5px; color: var(--n-faint); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+    .axis span { position: absolute; transform: translateX(-50%); }
+    .axis span:first-child { transform: none; }
+    .axis span:last-child { transform: translateX(-100%); }
+
+    /* ---------- Sessions ---------- */
+    .list {
+      display: grid; gap: 2px;
+      max-height: 196px;
+      margin-top: 14px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--night-3) transparent;
+    }
+    .row {
+      display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 10px;
+      min-height: 40px;
+      padding: 4px 4px 4px 10px;
+      border-radius: 12px;
+      font-size: 13px;
+      transition: background-color .25s;
+    }
+    .row:hover { background: #ffffff08; }
+    .row__name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .row__name small { margin-left: 6px; color: var(--n-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .row__dur { color: var(--n-ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+    .row.is-live .row__dur { color: var(--honey); }
+    .row__del {
+      width: 30px; height: 30px;
+      display: grid; place-items: center;
+      border-radius: 50%;
+      color: var(--n-faint);
+      opacity: 0;
+      transition: opacity .2s, background-color .2s, color .2s;
+    }
+    .row:hover .row__del, .row__del:focus-visible { opacity: 1; }
+    .row__del:hover { background: #ffffff12; color: var(--n-ink); }
+    .row__del .ico { width: 15px; height: 15px; }
+    .row__live { width: 30px; display: grid; place-items: center; }
+    .row__live i { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); animation: pulse 1.6s ease-in-out infinite; }
+    .empty { padding: 14px 10px; color: var(--n-faint); font-size: 12.5px; }
+
+    .hint { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--n-line); color: var(--n-faint); font-size: 11.5px; }
+    .hint span { display: inline-flex; align-items: center; gap: 5px; }
+    kbd {
+      display: inline-grid; place-items: center;
+      min-width: 18px; height: 18px; padding: 0 5px;
+      border-radius: 5px;
+      background: #ffffff0f;
+      box-shadow: 0 0 0 1px var(--n-line) inset;
+      color: var(--n-dim);
+      font: 500 10.5px/1 var(--font-body);
+    }
+
+    /* ---------- Toast ---------- */
+    .toast {
+      position: fixed; left: 0; right: 0; bottom: 26px; z-index: 30;
+      display: flex; align-items: center; gap: 14px;
+      width: fit-content; max-width: calc(100vw - 32px); margin: 0 auto;
+      padding: 10px 10px 10px 18px; border-radius: 999px;
+      background: var(--ink); color: var(--n-ink);
+      font-size: 13px; font-weight: 500;
+      box-shadow: 0 20px 40px -20px #0009;
+      opacity: 0; transform: translateY(18px) scale(.96);
+      pointer-events: none;
+      transition: opacity .3s, transform .45s var(--back);
+    }
+    .toast:not(:has(button:not([hidden]))) { padding-right: 18px; }
+    .toast.is-on { opacity: 1; transform: none; pointer-events: auto; }
+    .toast button { padding: 6px 12px; border-radius: 999px; background: var(--honey); color: var(--honey-ink); font-size: 12.5px; font-weight: 600; }
+
+    @media (max-width: 420px) {
+      .tt2 { padding: 16px; }
+      .tape { margin: 16px -16px 0; }
+      .clock { font-size: 56px; }
+      .clock__sec { font-size: 26px; }
+      .btn:not(.btn--icon) { padding: 0 14px; }
+      .proj button { padding: 8px 10px; }
+      .proj {
+        -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 22px), #0000);
+        mask-image: linear-gradient(90deg, #000 calc(100% - 22px), #0000);
+      }
+      .hint { display: none; }
+    }
+    @media (pointer: coarse) {
+      .row__del { opacity: 1; width: 40px; height: 40px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .dg__col, .proj__pill, .goal i, .toast, .tt2::before { transition: none; }
+      .tt2.is-running .state i, .row__live i, .tt2.is-running .clock > .sep { animation: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5L8 5.5Z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8.5 6v12M15.5 6v12"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M5 12a7 7 0 1 0 2.1-5M5 4.5V8h3.5"/></symbol>
+    <symbol id="i-split" viewBox="0 0 24 24"><path d="M12 4v16M6 8l-3 4 3 4M18 8l3 4-3 4"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  </svg>
+
+  <!--
+    data-goal-hours  the working day the goal line fills against
+    data-seed        on first run, fill today with sample sessions (about 2h 35m) so the tracker isn't empty
+    data-projects    optional JSON list of { "id", "name", "color" } to replace the default projects
+  -->
+  <article class="tt2" data-tape-tracker data-goal-hours="8" data-seed aria-label="Time tracker">
+    <header class="head">
+      <h2 class="title">Time tracker</h2>
+      <span class="state" aria-live="polite"><i aria-hidden="true"></i><span data-state>Paused</span></span>
+    </header>
+
+    <div class="proj" role="radiogroup" aria-label="Project" data-proj>
+      <span class="proj__pill" aria-hidden="true"></span>
+    </div>
+
+    <div class="read">
+      <p class="clock" data-clock role="timer" aria-label="Tracked today"></p>
+      <p class="sub" data-sub></p>
+    </div>
+
+    <div class="tape" aria-hidden="true">
+      <canvas></canvas>
+      <span class="tape__needle"></span>
+    </div>
+
+    <div class="ctrls">
+      <button class="go" type="button" data-toggle aria-pressed="false">
+        <svg class="ico ico--play"><use href="#i-play"/></svg><svg class="ico ico--pause"><use href="#i-pause"/></svg>
+        <span data-go>Start</span>
+      </button>
+      <button class="btn" type="button" data-split disabled><svg class="ico"><use href="#i-split"/></svg>Split</button>
+      <button class="btn btn--icon" type="button" data-reset aria-label="Clear today"><svg class="ico"><use href="#i-reset"/></svg></button>
+    </div>
+
+    <section class="day" aria-label="Today">
+      <div class="day__top">
+        <span class="day__lab">Today</span>
+        <span class="day__goal" data-goal></span>
+      </div>
+      <div class="goal" aria-hidden="true"><i data-goal-fill></i></div>
+      <div class="bar" data-bar role="img"></div>
+      <div class="axis" data-axis aria-hidden="true"></div>
+    </section>
+
+    <ul class="list" data-list aria-label="Sessions today"></ul>
+
+    <p class="hint">
+      <span><kbd>Space</kbd> start / pause</span>
+      <span><kbd>S</kbd> split</span>
+      <span><kbd>1</kbd>–<kbd data-pmax>4</kbd> project</span>
+    </p>
+  </article>
+
+  <div class="toast" role="status" aria-live="polite"><span data-msg></span><button type="button" data-undo hidden>Undo</button></div>
+
+  <script>
+  (() => {
+    const root = document.querySelector('[data-tape-tracker]');
+    if (!root) return;
+
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    const $ = (s) => root.querySelector(s);
+    const KEY = 'time-tracker-tape:state';
+    const GOAL = (+root.dataset.goalHours || 8) * 3600;
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    let PROJECTS = [
+      { id: 'design', name: 'Design', color: '#f6c343' },
+      { id: 'dev', name: 'Development', color: '#e9e5da' },
+      { id: 'meet', name: 'Meetings', color: '#df8b52' },
+      { id: 'admin', name: 'Admin', color: '#8fb59a' },
+    ];
+    try {
+      const custom = JSON.parse(root.dataset.projects || 'null');
+      if (Array.isArray(custom) && custom.length) PROJECTS = custom.filter((p) => p && p.id && p.name).slice(0, 9);
+    } catch {}
+    const proj = (id) => PROJECTS.find((p) => p.id === id) || PROJECTS[0];
+
+    /* ---------- State: today's sessions, each { p, s, e } (e = null while running) ---------- */
+    const dayKey = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+    const midnight = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return +d; };
+
+    let state = null;
+    try { state = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch {}
+    const fresh = !state || !Array.isArray(state.sessions);
+    if (fresh) state = { date: dayKey(Date.now()), sessions: [], project: PROJECTS[0].id };
+    if (!PROJECTS.some((p) => p.id === state.project)) state.project = PROJECTS[0].id;
+    const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+
+    const running = () => { const l = state.sessions[state.sessions.length - 1]; return l && l.e == null ? l : null; };
+    const durOf = (s, now = Date.now()) => Math.max(0, ((s.e ?? now) - s.s) / 1000);
+    const totalExact = (now = Date.now()) => state.sessions.reduce((a, s) => a + durOf(s, now), 0);
+
+    // A new day starts clean; a session still running carries on from midnight.
+    function rollover() {
+      const today = dayKey(Date.now());
+      if (state.date === today) return false;
+      const r = running();
+      state = { date: today, sessions: r ? [{ p: r.p, s: midnight(), e: null }] : [], project: state.project };
+      save();
+      return true;
+    }
+
+    // About 2h 35m across three sessions, ending a few minutes ago.
+    function seed() {
+      const plan = [['design', 62], ['meet', 30], ['dev', 63]];
+      const gaps = [18, 12];
+      let t = Date.now() - 8 * 60000;
+      const out = [];
+      for (let i = plan.length - 1; i >= 0; i--) {
+        const [p, mins] = plan[i];
+        const s = t - mins * 60000;
+        if (s < midnight() + 60000) break;
+        out.unshift({ p: PROJECTS.some((x) => x.id === p) ? p : PROJECTS[0].id, s, e: t });
+        t = s - (gaps[i - 1] || 0) * 60000;
+      }
+      state.sessions = out;
+      state.project = out.length ? out[out.length - 1].p : PROJECTS[0].id;
+      save();
+    }
+    if (fresh && root.hasAttribute('data-seed')) seed();
+    rollover();
+
+    /* ---------- Formatting ---------- */
+    const clockOf = (ms) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    function dur(sec, withSec = false) {
+      sec = Math.floor(sec);
+      const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+      if (withSec) return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
+      return h ? `${h}h ${String(m).padStart(2, '0')}m` : m ? `${m}m` : `${s}s`;
+    }
+
+    /* ---------- Project switcher ---------- */
+    const projEl = $('[data-proj]');
+    projEl.insertAdjacentHTML('beforeend', PROJECTS.map((p, i) =>
+      `<button type="button" role="radio" data-p="${esc(p.id)}" aria-checked="false" title="${esc(p.name)} (${i + 1})"><i class="dot" style="--c:${esc(p.color)}"></i>${esc(p.name)}</button>`).join(''));
+    const projBtns = [...projEl.querySelectorAll('button')];
+    $('[data-pmax]').textContent = PROJECTS.length;
+
+    function syncProj(animate = true) {
+      const pill = projEl.querySelector('.proj__pill');
+      projBtns.forEach((b) => { const on = b.dataset.p === state.project; b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
+      const b = projBtns.find((x) => x.dataset.p === state.project);
+      if (!b) return;
+      if (!animate) pill.style.transition = 'none';
+      pill.style.width = `${b.offsetWidth}px`;
+      pill.style.transform = `translateX(${b.offsetLeft}px)`;
+      if (!animate) { pill.getBoundingClientRect(); pill.style.transition = ''; }
+      if (projEl.scrollWidth > projEl.clientWidth) b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    /* ---------- Readout ---------- */
+    const clock = $('[data-clock]');
+    const roller = () => `<span class="dg"><span class="dg__col">${[...'0123456789'].map((d) => `<span>${d}</span>`).join('')}</span></span>`;
+    clock.innerHTML = roller() + roller() + '<span class="sep">:</span>' + roller() + roller() +
+      `<span class="clock__sec"><span class="sep">:</span>${roller()}${roller()}</span>`;
+    const cols = [...clock.querySelectorAll('.dg__col')];
+
+    function setDigits(sec) {
+      sec = Math.max(0, Math.floor(sec));
+      const h = String(Math.min(99, Math.floor(sec / 3600))).padStart(2, '0');
+      const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+      const s = String(sec % 60).padStart(2, '0');
+      [...h, ...m, ...s].forEach((d, i) => { cols[i].style.transform = `translateY(${-d * 10}%)`; });
+      clock.setAttribute('aria-label', `Tracked today ${+h} hours ${+m} minutes`);
+    }
+
+    /* ---------- Tape (canvas) ---------- */
+    const cv = $('.tape canvas');
+    const ctx = cv.getContext('2d');
+    const PPS = 1.6;                       // pixels per tracked second → 96 px per minute
+    let W = 0, H = 0;
+    let tapeT = 0, anim = null, raf = 0;
+
+    function sizeCanvas() {
+      const r = cv.getBoundingClientRect();
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      W = r.width; H = r.height;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      draw();
+    }
+
+    function roundRect(x, y, w, h, r) {
+      r = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.fill();
+    }
+
+    function draw() {
+      if (!W) return;
+      ctx.clearRect(0, 0, W, H);
+      const cx = W / 2, T = tapeT;
+      const t0 = T - cx / PPS, t1 = T + cx / PPS;
+      const bandY = H - 13, bandH = 6;
+
+      // Future: a faint dashed rail to the right of the needle.
+      ctx.strokeStyle = 'rgba(244,242,236,.12)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 4]);
+      ctx.beginPath(); ctx.moveTo(cx, bandY + bandH / 2); ctx.lineTo(W, bandY + bandH / 2); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Tracked time, coloured by project, laid end to end.
+      let cum = 0;
+      const now = Date.now();
+      for (const s of state.sessions) {
+        const a = cum, b = cum + durOf(s, now);
+        cum = b;
+        const bb = Math.min(b, T);
+        if (bb <= a || bb < t0 || a > t1) continue;
+        const x1 = cx + (a - T) * PPS, x2 = cx + (bb - T) * PPS;
+        ctx.fillStyle = proj(s.p).color;
+        roundRect(x1, bandY, Math.max(2, x2 - x1 - 2), bandH, 3);
+      }
+
+      // Ticks every 10 s, taller at 30 s and each minute, labelled with tracked time.
+      ctx.font = '500 10.5px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const step = 10;
+      for (let k = Math.ceil(Math.max(0, t0) / step); k * step <= t1; k++) {
+        const t = k * step;
+        const x = Math.round(cx + (t - T) * PPS) + 0.5;
+        const major = t % 60 === 0, half = t % 30 === 0;
+        const past = t <= T + 0.01;
+        ctx.strokeStyle = past ? (major ? 'rgba(244,242,236,.7)' : 'rgba(244,242,236,.38)') : 'rgba(244,242,236,.14)';
+        ctx.lineWidth = major ? 1.5 : 1;
+        ctx.beginPath(); ctx.moveTo(x, 20); ctx.lineTo(x, 20 + (major ? 20 : half ? 12 : 7)); ctx.stroke();
+        if (major) {
+          const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60);
+          ctx.fillStyle = past ? 'rgba(244,242,236,.72)' : 'rgba(244,242,236,.28)';
+          ctx.fillText(`${h}:${String(m).padStart(2, '0')}`, x, 13);
+        }
+      }
+    }
+
+    const easeInOut = (p) => (p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
+    // Slide the tape to `to` (or to the live total while running).
+    function tweenTape(to, ms = 900, onDone) {
+      if (reduce.matches) { tapeT = to ?? totalExact(); draw(); onDone?.(); return; }
+      anim = { from: tapeT, to, t0: performance.now(), ms, onDone };
+      kick();
+    }
+    function kick() { if (!raf) raf = requestAnimationFrame(frame); }
+    function frame(now) {
+      raf = 0;
+      if (anim) {
+        const p = Math.min(1, (now - anim.t0) / anim.ms);
+        const target = anim.to ?? totalExact();
+        tapeT = anim.from + (target - anim.from) * easeInOut(p);
+        if (anim.scrub) setDigits(tapeT);
+        if (p >= 1) { const done = anim.onDone; anim = null; done?.(); }
+      } else if (running() && !reduce.matches) {
+        tapeT = totalExact();
+      }
+      draw();
+      if (anim || (running() && !reduce.matches)) raf = requestAnimationFrame(frame);
+    }
+
+    /* ---------- Today timeline ---------- */
+    const bar = $('[data-bar]');
+    const axisEl = $('[data-axis]');
+    function axis() {
+      const mid = midnight();
+      const nowH = (Date.now() - mid) / 36e5;
+      const firstH = state.sessions.length ? (state.sessions[0].s - mid) / 36e5 : nowH;
+      const a = Math.max(0, Math.min(8, Math.floor(firstH)));
+      const b = Math.min(24, Math.max(19, Math.ceil(nowH + 0.5)));
+      return { mid, a, b, span: b - a, nowH };
+    }
+    let axisSig = '';
+    function renderBar() {
+      const ax = axis();
+      const pos = (ms) => (((ms - ax.mid) / 36e5 - ax.a) / ax.span) * 100;
+      const now = Date.now();
+      bar.style.setProperty('--hrs', ax.span);
+      bar.innerHTML = state.sessions.map((s) => {
+        const l = pos(s.s), w = Math.max(0, pos(s.e ?? now) - l);
+        const p = proj(s.p);
+        return `<i class="blk${s.e == null ? ' is-live' : ''}" style="left:${l.toFixed(3)}%;width:${w.toFixed(3)}%;--c:${esc(p.color)}"
+          title="${esc(p.name)} · ${clockOf(s.s)}–${s.e == null ? 'now' : clockOf(s.e)} · ${dur(durOf(s, now))}"></i>`;
+      }).join('') + (ax.nowH >= ax.a && ax.nowH <= ax.b ? `<i class="now" style="left:${(((ax.nowH - ax.a) / ax.span) * 100).toFixed(3)}%"></i>` : '');
+      bar.setAttribute('aria-label', state.sessions.length
+        ? `Today's sessions between ${String(ax.a).padStart(2, '0')}:00 and ${String(ax.b).padStart(2, '0')}:00`
+        : 'No sessions yet today');
+
+      const sig = `${ax.a}-${ax.b}`;
+      if (sig !== axisSig) {
+        axisSig = sig;
+        const every = ax.span > 14 ? 4 : ax.span > 9 ? 3 : 2;
+        const marks = [];
+        for (let h = ax.a; h <= ax.b; h += every) marks.push(h);
+        if (marks[marks.length - 1] !== ax.b) marks.push(ax.b);
+        if (marks.length > 2 && ax.b - marks[marks.length - 2] < every / 2) marks.splice(marks.length - 2, 1);
+        axisEl.innerHTML = marks.map((h) => `<span style="left:${(((h - ax.a) / ax.span) * 100).toFixed(3)}%">${String(h).padStart(2, '0')}:00</span>`).join('');
+      }
+    }
+
+    /* ---------- Session list ---------- */
+    const list = $('[data-list]');
+    function renderList(popNewest = false) {
+      const now = Date.now();
+      const rows = state.sessions.map((s, i) => ({ s, i })).reverse();
+      list.innerHTML = rows.length ? rows.map(({ s, i }) => {
+        const p = proj(s.p), live = s.e == null;
+        return `<li class="row${live ? ' is-live' : ''}" data-i="${i}">
+          <i class="dot" style="--c:${esc(p.color)}" aria-hidden="true"></i>
+          <span class="row__name">${esc(p.name)}<small>${clockOf(s.s)}–${live ? 'now' : clockOf(s.e)}</small></span>
+          <span class="row__dur" ${live ? 'data-live' : ''}>${dur(durOf(s, now), live)}</span>
+          ${live ? '<span class="row__live" aria-label="Running"><i></i></span>'
+                 : `<button class="row__del" type="button" data-del="${i}" aria-label="Delete ${esc(p.name)} session, ${clockOf(s.s)} to ${clockOf(s.e)}"><svg class="ico"><use href="#i-x"/></svg></button>`}
+        </li>`;
+      }).join('') : '<li class="empty">No sessions yet today. Press Start, or tap Space.</li>';
+
+      if (popNewest && rows.length && !reduce.matches) {
+        list.firstElementChild.animate([{ opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }],
+          { duration: 380, easing: 'cubic-bezier(.22,1,.36,1)' });
+      }
+    }
+
+    /* ---------- Per-second refresh ---------- */
+    const subEl = $('[data-sub]');
+    let shownSec = -1;
+    function tick(force = false) {
+      if (rollover()) { renderAll(); force = true; }
+      const total = totalExact();
+      const sec = Math.floor(total);
+      if (!force && sec === shownSec) return;
+      shownSec = sec;
+      if (!anim?.scrub) setDigits(sec);
+      if (reduce.matches && !anim) { tapeT = total; draw(); }
+
+      const r = running();
+      const n = state.sessions.length;
+      subEl.innerHTML = r
+        ? `<b>${esc(proj(r.p).name)}</b> · this session ${dur(durOf(r), true)}`
+        : n ? `Paused · ${n} ${n === 1 ? 'session' : 'sessions'} today` : 'Ready when you are';
+
+      const pct = total / GOAL;
+      $('[data-goal]').innerHTML = `<b>${dur(total)}</b> of ${GOAL / 3600}h · ${Math.floor(pct * 100)}%`;
+      $('[data-goal-fill]').style.setProperty('--p', Math.min(1, pct).toFixed(4));
+
+      const live = list.querySelector('[data-live]');
+      if (live && r) live.textContent = dur(durOf(r), true);
+      renderBar();
+    }
+
+    function sync() {
+      const r = running();
+      root.classList.toggle('is-running', !!r);
+      const go = $('[data-toggle]');
+      go.setAttribute('aria-pressed', String(!!r));
+      $('[data-go]').textContent = r ? 'Pause' : 'Start';
+      go.setAttribute('aria-label', r ? 'Pause timer' : `Start timer on ${proj(state.project).name}`);
+      $('[data-state]').textContent = r ? 'Tracking' : 'Paused';
+      $('[data-split]').disabled = !r;
+      $('[data-reset]').disabled = !state.sessions.length;
+    }
+
+    function renderAll(popNewest = false) {
+      sync();
+      syncProj();
+      renderList(popNewest);
+      tick(true);
+      draw();
+    }
+
+    /* ---------- Actions ---------- */
+    function pop(el) {
+      if (reduce.matches || !el) return;
+      el.animate([{ transform: 'scale(.92)' }, { transform: 'none' }], { duration: 420, easing: 'cubic-bezier(.34,2,.64,1)' });
+    }
+
+    function toggle() {
+      const r = running();
+      if (r) {
+        r.e = Date.now();
+        if (r.e - r.s < 1000) state.sessions.pop();
+      } else {
+        state.sessions.push({ p: state.project, s: Date.now(), e: null });
+      }
+      save();
+      renderAll(!r);
+      if (!r) kick();
+      pop($('[data-toggle]'));
+    }
+
+    function split() {
+      const r = running();
+      if (!r) return;
+      const now = Date.now();
+      if (now - r.s < 1000) return;
+      r.e = now;
+      state.sessions.push({ p: r.p, s: now, e: null });
+      save();
+      renderAll(true);
+      pop($('[data-split]'));
+      say(`Split — new ${proj(r.p).name} session`);
+    }
+
+    function setProject(id) {
+      if (!PROJECTS.some((p) => p.id === id)) return;
+      const prev = state.project;
+      state.project = id;
+      const r = running();
+      let moved = false;
+      if (r && r.p !== id) {
+        const now = Date.now();
+        if (now - r.s < 5000) r.p = id;          // just started: relabel instead of a tiny session
+        else { r.e = now; state.sessions.push({ p: id, s: now, e: null }); moved = true; }
+      }
+      save();
+      renderAll(moved);
+      if (r && prev !== id) say(`Now tracking ${proj(id).name}`);
+    }
+
+    function clearToday() {
+      if (!state.sessions.length) return;
+      const prev = JSON.parse(JSON.stringify(state.sessions));
+      const from = tapeT;
+      state.sessions = [];
+      save();
+      sync();
+      renderList();
+      // Rewind: the digits and tape run back to zero together.
+      if (!reduce.matches) {
+        root.classList.add('is-scrub');
+        tapeT = from;
+        anim = null;
+        tweenTape(0, 900, () => { root.classList.remove('is-scrub'); tick(true); });
+        anim.scrub = true;
+      }
+      tick(true);
+      pop($('[data-reset]'));
+      say('Today cleared', () => {
+        const stillRunning = running();
+        state.sessions = stillRunning ? [...prev.filter((s) => s.e != null), ...state.sessions] : prev;
+        // Sessions logged since the clear stay; anything restored keeps its order.
+        state.sessions.sort((a, b) => a.s - b.s);
+        const live = state.sessions.filter((s) => s.e == null);
+        if (live.length > 1) live.slice(0, -1).forEach((s) => { s.e = Date.now(); });
+        save();
+        renderAll();
+        tweenTape(null, 900);
+        say('Restored');
+      });
+    }
+
+    function deleteSession(i) {
+      const s = state.sessions[i];
+      if (!s || s.e == null) return;
+      const row = list.querySelector(`[data-i="${i}"]`);
+      const remove = () => {
+        const idx = state.sessions.indexOf(s);
+        if (idx < 0) return;
+        state.sessions.splice(idx, 1);
+        save();
+        renderAll();
+        const target = running() ? null : totalExact();
+        tweenTape(target, 600);
+        say(`Deleted ${proj(s.p).name} · ${dur(durOf(s))}`, () => {
+          state.sessions.push(s);
+          state.sessions.sort((a, b) => a.s - b.s);
+          save();
+          renderAll();
+          tweenTape(running() ? null : totalExact(), 600);
+        });
+      };
+      if (row && !reduce.matches) {
+        row.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateX(12px)' }],
+          { duration: 200, easing: 'ease-in', fill: 'forwards' }).onfinish = remove;
+      } else remove();
+    }
+
+    /* ---------- Events ---------- */
+    $('[data-toggle]').addEventListener('click', toggle);
+    $('[data-split]').addEventListener('click', split);
+    $('[data-reset]').addEventListener('click', clearToday);
+    projEl.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setProject(b.dataset.p); });
+    projEl.addEventListener('keydown', (e) => {
+      const step = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+      if (!step) return;
+      e.preventDefault();
+      const i = projBtns.findIndex((b) => b.dataset.p === state.project);
+      const next = projBtns[(i + step + projBtns.length) % projBtns.length];
+      setProject(next.dataset.p);
+      next.focus();
+    });
+    list.addEventListener('click', (e) => { const b = e.target.closest('[data-del]'); if (b) deleteSession(+b.dataset.del); });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return;
+      if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (e.code === 'Space') {
+        if (e.target.closest('button')) return;      // let a focused button handle its own Space
+        e.preventDefault(); toggle();
+      } else if (e.key === 's' || e.key === 'S') {
+        e.preventDefault(); split();
+      } else if (/^[1-9]$/.test(e.key) && PROJECTS[+e.key - 1]) {
+        e.preventDefault(); setProject(PROJECTS[+e.key - 1].id);
+      }
+    });
+
+    // Another open tab changed the tracker.
+    addEventListener('storage', (e) => {
+      if (e.key !== KEY) return;
+      try { state = JSON.parse(e.newValue) || state; } catch {}
+      renderAll();
+      tapeT = totalExact();
+      draw();
+      kick();
+    });
+
+    /* ---------- Toast with optional Undo ---------- */
+    const toastEl = document.querySelector('.toast');
+    const undoBtn = toastEl.querySelector('[data-undo]');
+    let toastTimer, undoFn = null;
+    function say(msg, onUndo) {
+      toastEl.querySelector('[data-msg]').textContent = msg;
+      undoFn = onUndo || null;
+      undoBtn.hidden = !onUndo;
+      toastEl.classList.add('is-on');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toastEl.classList.remove('is-on'); undoFn = null; }, onUndo ? 6000 : 2400);
+    }
+    undoBtn.addEventListener('click', () => {
+      const fn = undoFn;
+      undoFn = null;
+      clearTimeout(toastTimer);
+      toastEl.classList.remove('is-on');
+      fn?.();
+    });
+
+    /* ---------- Start ---------- */
+    setInterval(() => tick(), 250);
+    let lastW = 0;
+    new ResizeObserver(() => {
+      const w = cv.getBoundingClientRect().width;
+      if (Math.abs(w - lastW) < 0.5) return;
+      lastW = w;
+      sizeCanvas();
+      syncProj(false);
+    }).observe(cv);
+    document.fonts?.ready.then(() => { draw(); syncProj(false); });
+
+    renderAll();
+    syncProj(false);
+    // Load-in: the tape slides up to where you are, and the digits roll into place.
+    const total = totalExact();
+    tapeT = Math.max(0, total - 150);
+    setDigits(0);
+    requestAnimationFrame(() => {
+      sizeCanvas();
+      setDigits(total);
+      tweenTape(running() ? null : total, 1300);
+      if (!reduce.matches) {
+        list.querySelectorAll('.row').forEach((r, i) => r.animate(
+          [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
+          { duration: 420, delay: 200 + i * 60, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'backwards' }));
+        bar.querySelectorAll('.blk').forEach((b, i) => b.animate(
+          [{ transform: 'scaleX(0)', transformOrigin: '0 50%' }, { transform: 'none', transformOrigin: '0 50%' }],
+          { duration: 600, delay: 250 + i * 80, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'backwards' }));
+      }
+    });
+  })();
+  </script>
+</body>
+</html>

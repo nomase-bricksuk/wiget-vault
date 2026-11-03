@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sky clock</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --card: #fffdf8a8;
+      --card-2: #fffdf8db;
+      --hair: #ffffffe6;
+      --line: #1d1d1b17;
+      --line-2: #1d1d1b29;
+      --ink: #1d1d1b;
+      --dim: #5c5a54;
+      --faint: #75726a;
+      --honey: #f6c343;
+      --honey-ink: #5a4306;
+      --night: #252523;
+      --night-ink: #f4f2ec;
+      --shadow: 0 1px 0 #fffc inset, 0 18px 40px -26px #3c321459;
+      --font-display: "Outfit", system-ui, sans-serif;
+      --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+      --back: cubic-bezier(.34, 1.7, .64, 1);
+    }
+
+    /* Registered so the sky gradient can transition between colours. */
+    @property --top { syntax: "<color>"; inherits: true; initial-value: #0b1124; }
+    @property --bot { syntax: "<color>"; inherits: true; initial-value: #1b2340; }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      place-items: center;
+      padding: 16px;
+      color: var(--ink);
+      font: 400 14px/1.45 var(--font-body);
+      -webkit-font-smoothing: antialiased;
+      background:
+        radial-gradient(90% 70% at 100% 100%, #f8d66e8c, #f8d66e00 70%),
+        radial-gradient(60% 50% at 88% 0%, #fae4a080, #fae4a000 70%),
+        linear-gradient(160deg, #f5f3ee, #f2efe6 55%, #fbeec0);
+    }
+
+    button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
+    h2, p, dl, dd { margin: 0; }
+    :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+    .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .ico {
+      width: 18px; height: 18px; flex: none;
+      fill: none; stroke: currentColor; stroke-width: 1.7px;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    /* ---------- Card ---------- */
+    .sky-card {
+      width: min(100%, 620px);
+      padding: 10px 10px 18px;
+      border-radius: 30px;
+      background: var(--card);
+      box-shadow: var(--shadow), 0 0 0 1px var(--hair) inset;
+    }
+
+    /* ---------- Scene ---------- */
+    .scene {
+      position: relative;
+      aspect-ratio: 2 / 1;
+      min-height: 230px;
+      border-radius: 22px;
+      overflow: hidden;
+      background: linear-gradient(180deg, var(--top, #0b1124), var(--bot, #1b2340));
+      cursor: ew-resize;
+      touch-action: pan-y;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: --top 1.2s, --bot 1.2s;
+    }
+    .scene:focus-visible { outline: 3px solid var(--honey); outline-offset: 3px; }
+    .scene canvas, .scene svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .scene svg { overflow: visible; }
+
+    .bodies { position: absolute; inset: 0; pointer-events: none; }
+    .haze {
+      position: absolute; top: 70%; width: 95%; height: 60%;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(closest-side, color-mix(in srgb, var(--haze, #f09a63) 60%, transparent), transparent);
+      opacity: 0;
+    }
+    .sun { position: absolute; width: 0; height: 0; }
+    .sun i { position: absolute; left: 0; top: 0; border-radius: 50%; transform: translate(-50%, -50%); }
+    .sun__glow { width: 150px; height: 150px; background: radial-gradient(closest-side, color-mix(in srgb, var(--sun, #ffe39a) 55%, transparent), color-mix(in srgb, var(--sun, #ffe39a) 14%, transparent) 45%, transparent); }
+    .sun__disc { width: 22px; height: 22px; background: var(--sun, #ffe39a); box-shadow: 0 0 18px color-mix(in srgb, var(--sun, #ffe39a) 80%, transparent); }
+    .moon { position: absolute; left: 82%; top: 30%; width: 30px; height: 30px; transform: translate(-50%, -50%); opacity: 0; }
+    .moon svg { position: static; width: 100%; height: 100%; filter: drop-shadow(0 0 10px #f4efe040); }
+    .marker {
+      position: absolute; width: 9px; height: 9px;
+      border-radius: 50%;
+      border: 1.5px solid color-mix(in srgb, var(--path, #fff) 70%, transparent);
+      transform: translate(-50%, -50%);
+      opacity: 0;
+    }
+
+    .overlay {
+      position: absolute; left: 20px; top: 16px; right: 20px;
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+      color: var(--txt, #f4f2ec);
+      pointer-events: none;
+      transition: color 1s;
+    }
+    .time { font: 200 clamp(40px, 9vw, 58px)/1 var(--font-display); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+    .when { margin-top: 6px; font-size: 13px; font-weight: 500; opacity: .85; font-variant-numeric: tabular-nums; }
+    .badge {
+      padding: 6px 11px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--txt, #fff) 14%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--txt, #fff) 22%, transparent) inset;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      font-size: 12px; font-weight: 500;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .scene.is-preview .badge { background: var(--honey); color: var(--honey-ink); box-shadow: none; }
+
+    .scrub-hint {
+      position: absolute; left: 0; right: 0; bottom: 10px;
+      color: #f4f2ecb3;   /* sits on the hills, which are always dark */
+      font-size: 11px; text-align: center;
+      pointer-events: none;
+      transition: opacity .4s;
+    }
+    .scene.is-preview .scrub-hint, .scene.is-touched .scrub-hint { opacity: 0; }
+
+    /* ---------- Facts ---------- */
+    .facts { padding: 16px 10px 0; }
+    .facts__top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+    .count { font: 300 22px/1.2 var(--font-display); letter-spacing: -.01em; }
+    .count b { font-weight: 400; }
+    .loc {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: var(--card-2);
+      box-shadow: 0 0 0 1px var(--line) inset;
+      color: var(--dim);
+      font-size: 12px; font-weight: 500;
+      transition: box-shadow .3s var(--ease);
+    }
+    .loc:hover { box-shadow: 0 0 0 1px var(--line-2) inset; color: var(--ink); }
+    .loc .ico { width: 14px; height: 14px; }
+
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+    .stat { display: grid; grid-template-areas: "num" "lab" "sub"; align-content: start; }
+    .stat dt { grid-area: lab; margin-top: 4px; color: var(--dim); font-size: 12px; }
+    .stat dd { grid-area: num; font: 300 24px/1 var(--font-display); letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .stat small { grid-area: sub; color: var(--faint); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+    .moon-row {
+      display: flex; align-items: center; gap: 12px;
+      margin-top: 16px; padding: 12px 14px;
+      border-radius: 18px;
+      background: var(--card-2);
+      box-shadow: 0 0 0 1px var(--line) inset;
+    }
+    .moon-row svg { width: 34px; height: 34px; flex: none; }
+    .moon-row p { flex: 1; display: grid; font-size: 13px; }
+    .moon-row b { font-weight: 500; }
+    .moon-row small { color: var(--faint); font-size: 12px; }
+    .moon-row .next { color: var(--dim); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* ---------- Toast ---------- */
+    .toast {
+      position: fixed; left: 0; right: 0; bottom: 26px; z-index: 30;
+      width: fit-content; max-width: calc(100vw - 32px); margin: 0 auto;
+      padding: 12px 18px; border-radius: 999px;
+      background: var(--night); color: var(--night-ink);
+      font-size: 13px; font-weight: 500;
+      box-shadow: 0 20px 40px -20px #0009;
+      opacity: 0; transform: translateY(18px) scale(.96);
+      pointer-events: none;
+      transition: opacity .3s, transform .45s var(--back);
+    }
+    .toast.is-on { opacity: 1; transform: none; }
+
+    @media (max-width: 520px) {
+      .sky-card { padding: 8px 8px 16px; }
+      .scene { aspect-ratio: 4 / 3; }
+      .overlay { left: 16px; right: 16px; top: 14px; }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .overlay, .scrub-hint, .toast { transition: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></symbol>
+  </svg>
+
+  <article class="sky-card" data-sky aria-label="Sky clock">
+    <div class="scene" data-scene tabindex="0" role="slider" aria-label="Time of day. Drag or use the arrow keys to preview the sky; Escape returns to now"
+         aria-valuemin="0" aria-valuemax="1439">
+      <canvas data-stars aria-hidden="true"></canvas>
+      <svg viewBox="0 0 600 300" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <clipPath id="above"><rect x="-20" y="-50" width="640" height="260" /></clipPath>
+        </defs>
+        <!-- The sun's path for today -->
+        <path data-path clip-path="url(#above)" fill="none" stroke="var(--path, #ffffff)" stroke-opacity=".5" stroke-width="1.5" stroke-dasharray="2 5" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+      </svg>
+
+      <div class="bodies" aria-hidden="true">
+        <div class="haze" data-haze></div>
+        <div class="moon" data-moon><svg viewBox="-16 -16 32 32" data-moon-shape></svg></div>
+        <div class="sun" data-sun><i class="sun__glow"></i><i class="sun__disc"></i></div>
+      </div>
+
+      <svg viewBox="0 0 600 300" preserveAspectRatio="none" aria-hidden="true">
+        <path data-hill2 d="M-20 214 C 60 196, 120 200, 190 210 S 330 196, 410 205 S 540 192, 620 206 V 320 H -20 Z" fill="var(--hill2, #1a1f33)" />
+        <path data-hill1 d="M-20 236 C 70 216, 150 222, 240 234 S 400 214, 470 226 S 570 224, 620 218 V 320 H -20 Z" fill="var(--hill1, #11152a)" />
+        <!-- The sun's path below the horizon, faint -->
+        <path data-path fill="none" stroke="var(--path, #ffffff)" stroke-opacity=".16" stroke-width="1.2" stroke-dasharray="2 6" stroke-linecap="round" vector-effect="non-scaling-stroke" clip-path="url(#below2)" />
+        <defs><clipPath id="below2"><rect x="-20" y="210" width="640" height="120" /></clipPath></defs>
+        <line data-scrub x1="0" x2="0" y1="0" y2="300" stroke="var(--honey)" stroke-width="1.5" opacity="0" vector-effect="non-scaling-stroke" />
+      </svg>
+
+      <div class="bodies" aria-hidden="true"><span class="marker" data-marker></span></div>
+
+      <div class="overlay">
+        <div>
+          <p class="time" data-time>--:--</p>
+          <p class="when" data-when></p>
+        </div>
+        <span class="badge" data-badge></span>
+      </div>
+      <p class="scrub-hint">Drag across the sky to preview any hour</p>
+    </div>
+
+    <div class="facts">
+      <div class="facts__top">
+        <p class="count" data-count aria-live="polite"></p>
+        <button class="loc" type="button" data-loc><svg class="ico"><use href="#i-pin"/></svg><span data-loc-lab></span></button>
+      </div>
+      <dl class="stats">
+        <div class="stat"><dt>Sunrise</dt><dd data-rise>--</dd><small data-dawn></small></div>
+        <div class="stat"><dt>Sunset</dt><dd data-set>--</dd><small data-dusk></small></div>
+        <div class="stat"><dt>Daylight</dt><dd data-len>--</dd><small data-delta></small></div>
+        <div class="stat"><dt>Golden hour</dt><dd data-golden>--</dd><small data-golden-am></small></div>
+      </dl>
+      <div class="moon-row">
+        <svg viewBox="-20 -20 40 40" aria-hidden="true" data-moon-icon></svg>
+        <p><b data-moon-name></b><small data-moon-lit></small></p>
+        <span class="next" data-moon-next></span>
+      </div>
+    </div>
+  </article>
+
+  <div class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+  (() => {
+    const root = document.querySelector('[data-sky]');
+    if (!root) return;
+
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    const $ = (s) => root.querySelector(s);
+    const scene = $('[data-scene]');
+    const LOC_KEY = 'sky-clock:location';
+
+    /* =======================================================
+       Solar maths (after Vladimir Agafonkin's SunCalc, BSD)
+       ======================================================= */
+    const PI = Math.PI, rad = PI / 180, dayMs = 864e5, J1970 = 2440588, J2000 = 2451545, e = rad * 23.4397;
+    const toJulian = (d) => d / dayMs - 0.5 + J1970;
+    const fromJulian = (j) => new Date((j + 0.5 - J1970) * dayMs);
+    const toDays = (d) => toJulian(d) - J2000;
+    const rightAscension = (l, b) => Math.atan2(Math.sin(l) * Math.cos(e) - Math.tan(b) * Math.sin(e), Math.cos(l));
+    const declination = (l, b) => Math.asin(Math.sin(b) * Math.cos(e) + Math.cos(b) * Math.sin(e) * Math.sin(l));
+    const altitudeOf = (H, phi, dec) => Math.asin(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(H));
+    const siderealTime = (d, lw) => rad * (280.16 + 360.9856235 * d) - lw;
+    const solarMeanAnomaly = (d) => rad * (357.5291 + 0.98560028 * d);
+    const eclipticLongitude = (M) => M + rad * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M)) + rad * 102.9372 + PI;
+    function sunAltitude(date, lat, lng) {
+      const lw = rad * -lng, phi = rad * lat, d = toDays(date);
+      const L = eclipticLongitude(solarMeanAnomaly(d));
+      const H = siderealTime(d, lw) - rightAscension(L, 0);
+      return altitudeOf(H, phi, declination(L, 0)) / rad;
+    }
+    const J0 = 0.0009;
+    function sunTimes(date, lat, lng) {
+      const lw = rad * -lng, phi = rad * lat, d = toDays(date);
+      const n = Math.round(d - J0 - lw / (2 * PI));
+      const ds = J0 + lw / (2 * PI) + n;
+      const M = solarMeanAnomaly(ds), L = eclipticLongitude(M), dec = declination(L, 0);
+      const Jnoon = J2000 + ds + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L);
+      const out = { noon: fromJulian(Jnoon) };
+      [[-0.833, 'rise', 'set'], [-6, 'dawn', 'dusk'], [6, 'goldenEnd', 'golden']].forEach(([h, a, b]) => {
+        const w = Math.acos((Math.sin(h * rad) - Math.sin(phi) * Math.sin(dec)) / (Math.cos(phi) * Math.cos(dec)));
+        if (Number.isNaN(w)) { out[a] = out[b] = null; return; }
+        const Jset = J2000 + (J0 + (w + lw) / (2 * PI) + n) + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L);
+        out[a] = fromJulian(Jnoon - (Jset - Jnoon));
+        out[b] = fromJulian(Jset);
+      });
+      return out;
+    }
+
+    /* ---------- Moon phase (synodic month from a known new moon) ---------- */
+    const SYNODIC = 29.530588853;
+    const NEW_MOON = Date.UTC(2000, 0, 6, 18, 14);
+    function moonPhase(ms) {
+      const p = (((ms - NEW_MOON) / dayMs) % SYNODIC + SYNODIC) % SYNODIC / SYNODIC;
+      return { p, lit: (1 - Math.cos(2 * PI * p)) / 2 };
+    }
+    function moonName(p) {
+      if (p < 0.03 || p > 0.97) return 'New moon';
+      if (p < 0.22) return 'Waxing crescent';
+      if (p < 0.28) return 'First quarter';
+      if (p < 0.47) return 'Waxing gibbous';
+      if (p < 0.53) return 'Full moon';
+      if (p < 0.72) return 'Waning gibbous';
+      if (p < 0.78) return 'Last quarter';
+      return 'Waning crescent';
+    }
+    // SVG for the lit part of a moon of radius r (northern-hemisphere view).
+    function moonSVG(p, r, lit = '#f4efe0', dark = '#3a3d52') {
+      const rx = Math.abs(Math.cos(2 * PI * p)) * r;
+      const gibbous = Math.cos(2 * PI * p) < 0;
+      const waxing = p < 0.5;
+      const outer = `M0 ${-r} A${r} ${r} 0 0 ${waxing ? 1 : 0} 0 ${r}`;
+      const inner = `A${rx.toFixed(2)} ${r} 0 0 ${waxing === gibbous ? 1 : 0} 0 ${-r}`;
+      return `<circle r="${r}" fill="${dark}" /><path d="${outer} ${inner} Z" fill="${lit}" />`;
+    }
+
+    /* ---------- Location ---------- */
+    const TZ_CITIES = {
+      'Asia/Tokyo': [35.68, 139.76, 'Tokyo'], 'Asia/Seoul': [37.57, 126.98, 'Seoul'], 'Asia/Shanghai': [31.23, 121.47, 'Shanghai'],
+      'Asia/Hong_Kong': [22.32, 114.17, 'Hong Kong'], 'Asia/Singapore': [1.35, 103.82, 'Singapore'], 'Asia/Bangkok': [13.76, 100.5, 'Bangkok'],
+      'Asia/Kolkata': [19.08, 72.88, 'Mumbai'], 'Asia/Dubai': [25.2, 55.27, 'Dubai'], 'Europe/London': [51.51, -0.13, 'London'],
+      'Europe/Paris': [48.86, 2.35, 'Paris'], 'Europe/Berlin': [52.52, 13.4, 'Berlin'], 'Europe/Madrid': [40.42, -3.7, 'Madrid'],
+      'Europe/Amsterdam': [52.37, 4.9, 'Amsterdam'], 'Europe/Stockholm': [59.33, 18.07, 'Stockholm'], 'America/New_York': [40.71, -74.01, 'New York'],
+      'America/Chicago': [41.88, -87.63, 'Chicago'], 'America/Denver': [39.74, -104.99, 'Denver'], 'America/Los_Angeles': [34.05, -118.24, 'Los Angeles'],
+      'America/Toronto': [43.65, -79.38, 'Toronto'], 'America/Sao_Paulo': [-23.55, -46.63, 'São Paulo'], 'Australia/Sydney': [-33.87, 151.21, 'Sydney'],
+      'Australia/Melbourne': [-37.81, 144.96, 'Melbourne'], 'Pacific/Auckland': [-36.85, 174.76, 'Auckland'], 'Africa/Lagos': [6.52, 3.38, 'Lagos'],
+      'Africa/Nairobi': [-1.29, 36.82, 'Nairobi'], 'Africa/Johannesburg': [-26.2, 28.05, 'Johannesburg'],
+    };
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    function defaultLoc() {
+      const c = TZ_CITIES[tz];
+      if (c) return { lat: c[0], lng: c[1], label: c[2], auto: true };
+      // Unknown zone: estimate longitude from the UTC offset.
+      return { lat: 35, lng: -new Date().getTimezoneOffset() / 4, label: 'Your time zone (approx.)', auto: true };
+    }
+    let loc = defaultLoc();
+    try { const s = JSON.parse(localStorage.getItem(LOC_KEY) || 'null'); if (s && isFinite(s.lat) && isFinite(s.lng)) loc = s; } catch {}
+
+    /* ---------- Colour helpers ---------- */
+    const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+    const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+    const css = (c) => `rgb(${c[0]},${c[1]},${c[2]})`;
+    const lum = (c) => (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
+    const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+    // Sky by sun altitude (degrees): [altitude, top, horizon]
+    const SKY = [
+      [-90, '#070b18', '#111830'], [-18, '#0a1022', '#18203c'], [-11, '#151d45', '#33346a'],
+      [-5, '#27346c', '#b0677d'], [-1, '#3f5596', '#ee8f61'], [3, '#6587c2', '#f6b870'],
+      [10, '#7aaade', '#f3d6a6'], [25, '#84b9e8', '#ecebdf'], [90, '#8cc2ee', '#f4f1e6'],
+    ].map(([a, t, b]) => [a, hex(t), hex(b)]);
+    function skyAt(alt) {
+      for (let i = 1; i < SKY.length; i++) {
+        if (alt <= SKY[i][0]) {
+          const [a0, t0, b0] = SKY[i - 1], [a1, t1, b1] = SKY[i];
+          const t = (alt - a0) / (a1 - a0);
+          return { top: mix(t0, t1, t), bot: mix(b0, b1, t) };
+        }
+      }
+      return { top: SKY[SKY.length - 1][1], bot: SKY[SKY.length - 1][2] };
+    }
+    const sunColor = (alt) => css(mix(hex('#ff9a4d'), hex('#fff0b8'), clamp((alt + 1) / 22, 0, 1)));
+
+    /* ---------- Geometry ---------- */
+    const HORIZON = 210;
+    let K = 3;                              // px per degree above the horizon
+    const KB = 0.9;                         // px per degree below it
+    const yOf = (alt) => (alt >= 0 ? HORIZON - alt * K : HORIZON - alt * KB);
+    const xOf = (min) => (min / 1440) * 600;
+
+    /* ---------- Day data ---------- */
+    let day = null;                         // { mid, times, yesterday, tomorrow, path }
+    const midnightOf = (ms) => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return +d; };
+    const atMin = (min) => day.mid + min * 60000;
+
+    function computeDay() {
+      const mid = midnightOf(Date.now());
+      const noonish = new Date(mid + 12 * 36e5);
+      const times = sunTimes(noonish, loc.lat, loc.lng);
+      const yesterday = sunTimes(new Date(+noonish - dayMs), loc.lat, loc.lng);
+      const tomorrow = sunTimes(new Date(+noonish + dayMs), loc.lat, loc.lng);
+      let maxAlt = -90;
+      const pts = [];
+      for (let m = 0; m <= 1440; m += 6) {
+        const a = sunAltitude(new Date(mid + m * 60000), loc.lat, loc.lng);
+        maxAlt = Math.max(maxAlt, a);
+        pts.push([m, a]);
+      }
+      K = Math.min(3, 175 / Math.max(maxAlt, 20));
+      const d = pts.map(([m, a], i) => `${i ? 'L' : 'M'}${xOf(m).toFixed(1)} ${yOf(a).toFixed(1)}`).join(' ');
+      day = { mid, times, yesterday, tomorrow, maxAlt };
+      root.querySelectorAll('[data-path]').forEach((p) => p.setAttribute('d', d));
+      renderFacts();
+    }
+
+    /* ---------- Formatting ---------- */
+    const hm = (d) => (d ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '—');
+    const span = (ms) => {
+      const m = Math.round(Math.abs(ms) / 60000), h = Math.floor(m / 60);
+      return h ? `${h}h ${String(m % 60).padStart(2, '0')}m` : `${m}m`;
+    };
+    const hhmmOf = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(Math.floor(min % 60)).padStart(2, '0')}`;
+
+    /* ---------- Facts panel ---------- */
+    function renderFacts() {
+      const t = day.times;
+      $('[data-rise]').textContent = hm(t.rise);
+      $('[data-set]').textContent = hm(t.set);
+      $('[data-dawn]').textContent = t.dawn ? `First light ${hm(t.dawn)}` : '';
+      $('[data-dusk]').textContent = t.dusk ? `Last light ${hm(t.dusk)}` : '';
+      $('[data-golden]').textContent = hm(t.golden);
+      $('[data-golden-am]').textContent = t.goldenEnd ? `Morning until ${hm(t.goldenEnd)}` : '';
+
+      if (t.rise && t.set) {
+        const len = t.set - t.rise;
+        $('[data-len]').textContent = span(len);
+        const y = day.yesterday;
+        if (y.rise && y.set) {
+          const dl = len - (y.set - y.rise);
+          const s = Math.round(Math.abs(dl) / 1000);
+          $('[data-delta]').textContent = `${dl >= 0 ? '+' : '−'}${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s vs yesterday`;
+        }
+      } else {
+        const up = sunAltitude(new Date(day.mid + 12 * 36e5), loc.lat, loc.lng) > 0;
+        $('[data-len]').textContent = up ? '24h' : '0h';
+        $('[data-delta]').textContent = up ? 'Midnight sun' : 'Polar night';
+      }
+
+      const m = moonPhase(Date.now());
+      $('[data-moon-icon]').innerHTML = moonSVG(m.p, 16, '#f2e9cf', '#d9d3c4');
+      $('[data-moon-name]').textContent = moonName(m.p);
+      $('[data-moon-lit]').textContent = `${Math.round(m.lit * 100)}% lit`;
+      const toFull = ((0.5 - m.p + 1) % 1) * SYNODIC, toNew = ((1 - m.p) % 1) * SYNODIC;
+      const [label, days] = toFull < toNew ? ['Full moon', toFull] : ['New moon', toNew];
+      $('[data-moon-next]').textContent = days < 1 ? `${label} today` : `${label} in ${Math.round(days)} ${Math.round(days) === 1 ? 'day' : 'days'}`;
+      $('[data-moon-shape]').innerHTML = moonSVG(m.p, 15, '#f4efe0', '#2a2f48');
+
+      $('[data-loc-lab]').textContent = loc.auto ? `${loc.label} · from your time zone` : loc.label;
+      $('[data-loc]').setAttribute('aria-label', loc.auto ? `Location: ${loc.label}, from your time zone. Use my location instead` : `Location: ${loc.label}. Switch back to your time zone's city`);
+    }
+
+    function countdownText(nowMs) {
+      const t = day.times;
+      if (!t.rise || !t.set) return `<b>${$('[data-delta]').textContent}</b>`;
+      if (nowMs < +t.rise) return `Sunrise in <b>${span(t.rise - nowMs)}</b>`;
+      if (nowMs < +t.set) return `Sunset in <b>${span(t.set - nowMs)}</b>`;
+      const next = day.tomorrow.rise;
+      return next ? `Sunrise in <b>${span(next - nowMs)}</b>` : 'The sun has set';
+    }
+
+    /* ---------- Scene ---------- */
+    const sunEl = $('[data-sun]');
+    const marker = $('[data-marker]');
+    const moonEl = $('[data-moon]');
+    const haze = $('[data-haze]');
+    const scrubLine = $('[data-scrub]');
+    let starAlpha = 0;
+
+    function paint(min, { preview = false } = {}) {
+      const ms = atMin(min);
+      const alt = sunAltitude(new Date(ms), loc.lat, loc.lng);
+      const sky = skyAt(alt);
+      const x = xOf(min), y = yOf(alt);
+
+      scene.style.setProperty('--top', css(sky.top));
+      scene.style.setProperty('--bot', css(sky.bot));
+      scene.style.setProperty('--sun', sunColor(alt));
+      scene.style.setProperty('--haze', css(mix(sky.bot, hex('#ff8a4a'), 0.5)));
+      scene.style.setProperty('--hill2', css(mix(sky.bot, hex('#1d1d1b'), 0.62)));
+      scene.style.setProperty('--hill1', css(mix(sky.top, hex('#141414'), 0.78)));
+      const light = lum(sky.top) > 0.5;
+      scene.style.setProperty('--txt', light ? '#1d1d1b' : '#f4f2ec');
+      scene.style.setProperty('--path', light ? '#1d1d1b' : '#ffffff');
+
+      const px = `${(x / 6).toFixed(3)}%`, py = `${(y / 3).toFixed(3)}%`;
+      sunEl.style.left = px; sunEl.style.top = py;
+      sunEl.style.opacity = alt > -2 ? 1 : 0;
+      marker.style.left = px; marker.style.top = py;
+      marker.style.opacity = alt < -0.5 ? 1 : 0;
+
+      // Warm haze on the horizon around sunrise and sunset.
+      haze.style.left = px;
+      haze.style.opacity = clamp(1 - Math.abs(alt + 2) / 9, 0, 1).toFixed(3);
+
+      starAlpha = clamp((-alt - 4) / 10, 0, 1);
+      moonEl.style.opacity = (starAlpha * 0.95).toFixed(3);
+      drawStars();
+      if (starAlpha > 0) startStars();
+
+      scrubLine.setAttribute('x1', x); scrubLine.setAttribute('x2', x);
+      scrubLine.setAttribute('opacity', preview ? 0.8 : 0);
+
+      $('[data-time]').textContent = hhmmOf(min);
+      const pos = alt >= 1.5 ? `Sun ${Math.round(alt)}° up`
+        : alt > -0.833 ? (min < (day.times.noon - day.mid) / 60000 ? 'Sunrise' : 'Sunset')
+        : alt > -6 ? 'Twilight' : alt > -12 ? 'Nautical twilight' : alt > -18 ? 'Astronomical twilight' : 'Night';
+      $('[data-badge]').textContent = preview ? `Previewing · ${pos}` : pos;
+      scene.classList.toggle('is-preview', preview);
+      scene.setAttribute('aria-valuenow', Math.round(min));
+      scene.setAttribute('aria-valuetext', `${hhmmOf(min)}, ${pos.toLowerCase()}${preview ? ', preview' : ''}`);
+    }
+
+    function nowMin() { return (Date.now() - day.mid) / 60000; }
+
+    function renderNow() {
+      if (midnightOf(Date.now()) !== day.mid) computeDay();
+      const now = Date.now();
+      $('[data-when]').textContent = `${new Date(now).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · ${loc.label}`;
+      $('[data-count]').innerHTML = countdownText(now);
+      if (!previewing && !returning) paint(nowMin());
+    }
+
+    /* ---------- Stars ---------- */
+    const cv = $('[data-stars]');
+    const ctx = cv.getContext('2d');
+    let CW = 0, CH = 0, stars = [], shooting = null, starRaf = 0;
+    function seedStars() {
+      let s = 7;
+      const rnd = () => ((s = (s * 16807) % 2147483647), (s - 1) / 2147483646);
+      stars = Array.from({ length: 140 }, () => ({ x: rnd(), y: rnd() * 0.72, r: 0.4 + rnd() * 1.1, ph: rnd() * PI * 2, sp: 0.6 + rnd() * 1.6 }));
+    }
+    function sizeStars() {
+      const r = cv.getBoundingClientRect();
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      CW = r.width; CH = r.height;
+      cv.width = Math.round(CW * dpr); cv.height = Math.round(CH * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawStars();
+    }
+    function drawStars(t = performance.now()) {
+      ctx.clearRect(0, 0, CW, CH);
+      if (starAlpha <= 0) return;
+      const tw = !reduce.matches;
+      for (const st of stars) {
+        const a = starAlpha * (tw ? 0.55 + 0.45 * Math.sin(st.ph + t / 1000 * st.sp) : 0.8);
+        ctx.globalAlpha = a;
+        ctx.fillStyle = '#fffbe9';
+        ctx.beginPath(); ctx.arc(st.x * CW, st.y * CH * (HORIZON / 300), st.r, 0, PI * 2); ctx.fill();
+      }
+      if (shooting) {
+        const p = (t - shooting.t0) / shooting.ms;
+        if (p >= 1) shooting = null;
+        else {
+          const x = shooting.x + shooting.dx * p, y = shooting.y + shooting.dy * p;
+          const g = ctx.createLinearGradient(x, y, x - shooting.dx * 0.25, y - shooting.dy * 0.25);
+          g.addColorStop(0, `rgba(255,250,230,${starAlpha * (1 - p)})`);
+          g.addColorStop(1, 'rgba(255,250,230,0)');
+          ctx.globalAlpha = 1;
+          ctx.strokeStyle = g; ctx.lineWidth = 1.4;
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - shooting.dx * 0.25, y - shooting.dy * 0.25); ctx.stroke();
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+    function starFrame(t) {
+      starRaf = 0;
+      if (starAlpha <= 0 || reduce.matches || document.hidden) return;
+      if (!shooting && starAlpha > 0.6 && Math.random() < 1 / 900) {
+        shooting = { x: CW * (0.15 + Math.random() * 0.7), y: CH * (0.05 + Math.random() * 0.25), dx: (Math.random() < 0.5 ? -1 : 1) * CW * 0.28, dy: CH * 0.18, t0: t, ms: 900 };
+      }
+      drawStars(t);
+      starRaf = requestAnimationFrame(starFrame);
+    }
+    function startStars() { if (!starRaf && !reduce.matches) starRaf = requestAnimationFrame(starFrame); }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) startStars(); });
+
+    /* ---------- Scrubbing ---------- */
+    let previewing = false, returning = false, previewMin = 0, idleTimer = 0, dragging = false;
+    const minFromX = (clientX) => {
+      const r = scene.getBoundingClientRect();
+      return clamp(((clientX - r.left) / r.width) * 1440, 0, 1439);
+    };
+    function preview(min) {
+      returning = false;
+      previewing = true;
+      previewMin = clamp(min, 0, 1439);
+      scene.style.transition = 'none';
+      paint(previewMin, { preview: true });
+      const ms = atMin(previewMin);
+      $('[data-count]').innerHTML = `Previewing <b>${hhmmOf(previewMin)}</b> · ${previewMin < nowMin() ? `${span(Date.now() - ms)} ago` : `in ${span(ms - Date.now())}`}`;
+    }
+    // Ease the sky back to the present.
+    function backToNow() {
+      clearTimeout(idleTimer);
+      if (!previewing) return;
+      previewing = false;
+      const from = previewMin;
+      if (reduce.matches) { scene.style.transition = ''; renderNow(); return; }
+      returning = true;
+      const t0 = performance.now(), ms = 900;
+      const ease = (p) => 1 - Math.pow(1 - p, 3);
+      (function step(t) {
+        if (!returning) return;
+        const p = Math.min(1, (t - t0) / ms);
+        paint(from + (nowMin() - from) * ease(p));
+        if (p < 1) requestAnimationFrame(step);
+        else { returning = false; scene.style.transition = ''; renderNow(); }
+      })(t0);
+    }
+
+    scene.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      dragging = true;
+      scene.classList.add('is-touched');
+      scene.setPointerCapture(e.pointerId);
+      preview(minFromX(e.clientX));
+    });
+    scene.addEventListener('pointermove', (e) => { if (dragging) preview(minFromX(e.clientX)); });
+    const endDrag = () => { if (!dragging) return; dragging = false; backToNow(); };
+    scene.addEventListener('pointerup', endDrag);
+    scene.addEventListener('pointercancel', endDrag);
+
+    scene.addEventListener('keydown', (e) => {
+      const step = { ArrowLeft: -15, ArrowRight: 15, ArrowDown: -15, ArrowUp: 15, PageDown: -60, PageUp: 60 }[e.key];
+      if (step) {
+        e.preventDefault();
+        preview((previewing ? previewMin : nowMin()) + step);
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(backToNow, 4000);
+      } else if (e.key === 'Home') { e.preventDefault(); preview(0); }
+      else if (e.key === 'End') { e.preventDefault(); preview(1439); }
+      else if (e.key === 'Escape' || e.key === 'Enter') { if (previewing) { e.preventDefault(); backToNow(); } }
+    });
+    scene.addEventListener('blur', () => { if (previewing && !dragging) backToNow(); });
+
+    /* ---------- Location button ---------- */
+    let toastTimer;
+    function say(msg) {
+      const t = document.querySelector('.toast');
+      t.textContent = msg;
+      t.classList.add('is-on');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('is-on'), 2600);
+    }
+    $('[data-loc]').addEventListener('click', () => {
+      if (!loc.auto) {
+        loc = defaultLoc();
+        try { localStorage.removeItem(LOC_KEY); } catch {}
+        computeDay(); renderNow();
+        say(`Back to ${loc.label}`);
+        return;
+      }
+      if (!navigator.geolocation) { say('Location isn’t available in this browser'); return; }
+      say('Finding you…');
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        loc = { lat, lng, label: `${Math.abs(lat).toFixed(1)}°${lat >= 0 ? 'N' : 'S'} ${Math.abs(lng).toFixed(1)}°${lng >= 0 ? 'E' : 'W'}`, auto: false };
+        try { localStorage.setItem(LOC_KEY, JSON.stringify(loc)); } catch {}
+        computeDay(); renderNow();
+        say('Sky set to your location');
+      }, (err) => {
+        say(err.code === 1 ? 'Location permission was declined' : 'Couldn’t get your location');
+      }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 6 * 36e5 });
+    });
+
+    /* ---------- Start ---------- */
+    seedStars();
+    computeDay();
+    new ResizeObserver(() => sizeStars()).observe(cv);
+
+    // Load-in: the sun rises along its path from the start of the day to now.
+    if (reduce.matches) {
+      renderNow();
+    } else {
+      const target = nowMin(), from = Math.max(0, target - 240);
+      returning = true;
+      scene.style.transition = 'none';
+      const t0 = performance.now(), ms = 1600;
+      const ease = (p) => (p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
+      renderNow();
+      (function step(t) {
+        const p = Math.min(1, (t - t0) / ms);
+        paint(from + (nowMin() - from) * ease(p));
+        if (p < 1) requestAnimationFrame(step);
+        else { returning = false; scene.style.transition = ''; renderNow(); }
+      })(t0);
+    }
+    setInterval(renderNow, 15000);
+  })();
+  </script>
+</body>
+</html>

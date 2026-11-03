@@ -1,12 +1,14 @@
 # widget-vault
 
-Ten widgets, each in its own self-contained HTML file with no GSAP. Open any of them in a browser — there's no build step, and the only dependency is Google Fonts (Outfit, Inter).
+Sixteen widgets, each in its own self-contained HTML file with no GSAP. Open any of them in a browser — there's no build step, and the only dependency is Google Fonts (Outfit, Inter).
 
-All ten share the same design tokens (honey, night, ink and the warm card surface), animate with CSS transitions and the Web Animations API, and respect the reduced-motion setting.
+All sixteen share the same design tokens (honey, night, ink and the warm card surface), animate with CSS transitions and the Web Animations API, and respect the reduced-motion setting.
 
 | File                   | Widget          |
 | ---------------------- | --------------- |
 | `time-tracker.html`    | Time tracker    |
+| `time-tracker-tape.html` | Time tracker (tape) |
+| `office-hours-tape.html` | Office hours (tape) |
 | `progress-card.html`   | Weekly progress |
 | `onboarding-card.html` | Onboarding      |
 | `calendar-card.html`   | Week calendar   |
@@ -16,6 +18,10 @@ All ten share the same design tokens (honey, night, ink and the warm card surfac
 | `activity-heatmap.html`| Activity heatmap|
 | `command-palette.html` | Command palette |
 | `timezone-planner.html`| Time-zone planner |
+| `sky-clock.html`       | Sky clock         |
+| `weather-sky.html`     | Weather sky       |
+| `weather-mini.html`    | Weather mini      |
+| `weather-type.html`    | Weather type      |
 
 ---
 
@@ -51,6 +57,61 @@ Set these on the card element (`<article class="tt" data-tracker …>`):
 ```
 
 Saved state lives under the localStorage key `time-tracker:state`. Clear it (or press Reset) to go back to zero; once saved, the stored value takes priority over `data-start`.
+
+---
+
+## Time tracker (tape) — `time-tracker-tape.html`
+
+A second take on the time tracker with a different interface: a dark card where a horizontal tape ruler slides past a fixed needle, time is tagged to projects, and today's sessions are laid out on a timeline.
+
+### Behaviour
+
+- **Readout:** HH:MM in large rolling digits, with the seconds smaller beside them. The colon blinks while the timer runs.
+- **Tape:** a ruler of tracked time, with a tick every 10 seconds and a label every minute, glides past the honey needle while you're tracking and stops when you pause. A coloured band along the bottom shows which project each stretch of time went to. It slides into place on load and rewinds to zero when you clear the day.
+- **Projects:** Design, Development, Meetings and Admin, each with its own colour. Switching project while tracking ends the current session and starts a new one. In the first 5 seconds of a session it just relabels the session instead.
+- **Start / Pause, Split:** Start begins a session on the selected project and Pause ends it. Split closes the current session and starts a fresh one on the same project, like a lap.
+- **Today:** a wall-clock timeline of when each session happened, coloured by project, with a "now" marker. The running session is striped. Hovering a block shows its project, times and length. Above it, a goal line fills against an 8-hour day.
+- **Sessions:** a list with the newest first, showing each session's project, start and end times and length. The running session counts live. Delete a session with its × button, or clear the whole day with ↺. Both offer **Undo** for 6 seconds.
+- **Keyboard:** Space starts and pauses, S splits, and 1–4 pick a project.
+- **Midnight:** each day starts clean. A session still running at midnight carries on into the new day from 00:00.
+- **Timekeeping:** times are stored as timestamps, so the timer stays accurate in background tabs, carries on across reloads and stays in sync between open tabs.
+
+### Settings and storage
+
+| Attribute         | Default | What it does                                                                         |
+| ----------------- | ------- | ------------------------------------------------------------------------------------ |
+| `data-goal-hours` | `8`     | The working day the goal line fills against.                                         |
+| `data-seed`       | on      | On first run, fills today with three sample sessions (2h 35m). Remove it to start empty. |
+| `data-projects`   | —       | Optional JSON list replacing the default projects, up to 9: `[{"id":"client","name":"Client work","color":"#f6c343"}]`. |
+
+Today's sessions are saved under `time-tracker-tape:state`. This tracker is separate from `time-tracker.html` and doesn't feed the month tracker.
+
+---
+
+## Office hours (tape) — `office-hours-tape.html`
+
+The tape tracker rebuilt for presence. Instead of tagging time to projects, you clock in and out, and while you're clocked in you're always in one of four statuses: **Active**, **Focus**, **Meeting** or **Away**.
+
+### Behaviour
+
+- **Clock in / out:** the main button clocks you in on the last status you used. Picking a status while you're off the clock clocks you in on that status.
+- **Statuses:** switching status ends the current entry and starts a new one. In the first 5 seconds of an entry it just relabels it. Away still counts as clocked-in time but not as online time, and it's drawn striped wherever it appears.
+- **Readout and tape:** the readout shows total time clocked in today. The tape slides past the needle while you're clocked in, with a band coloured by status. The status pill and the card's glow take the current status's colour.
+- **Today:** a stacked bar and a legend give each status's time and share of the day, with **Online** (Active + Focus + Meeting) and **Away** totals above.
+- **Timeline:** the clock-in entries laid out against the time of day. Office hours are outlined, with a "now" marker. The header line says how long until opening or closing, or that the office has closed, and adds any time clocked in outside office hours. During those hours the readout shows an "Outside office hours" tag.
+- **Status log:** every change, newest first, with its times and length. The current entry counts live. Delete an entry with ×, or clear the day with ↺. Both offer **Undo** for 6 seconds.
+- **Keyboard:** Space clocks in and out, and 1–4 pick Active, Focus, Meeting or Away.
+- **Midnight and storage:** as in the tape tracker, each day starts clean, a clock-in still running at midnight carries on from 00:00, and open tabs stay in sync.
+
+### Settings and storage
+
+| Attribute           | Default | What it does                                                                                  |
+| ------------------- | ------- | --------------------------------------------------------------------------------------------- |
+| `data-office-start` | `9`     | Office opens, in hours (`9.5` = 09:30).                                                       |
+| `data-office-end`   | `18`    | Office closes.                                                                                |
+| `data-seed`         | on      | On first run, fills today with a sample morning, 2h 35m back to back, including 12m away. Remove it to start empty. |
+
+Today's entries are saved under `office-hours:state`. It's separate from `status-tracker.html`, so the focus ring and heatmap don't read it.
 
 ---
 
@@ -320,3 +381,100 @@ A strip that answers "when can we all meet?" for a team spread across time zones
 - **Phones:** the timeline scrolls sideways with the names pinned and starts on the selected time. The right-hand column is hidden, since the selected-time panel shows the same thing.
 
 All time-zone maths uses the browser's built-in `Intl` API, so there's no time-zone library to ship. Add more cities to the `CITIES` array as `[city, IANA time zone]` pairs.
+
+---
+
+## Sky clock — `sky-clock.html`
+
+An ambient clock that shows the real sky for where you are. The sun follows its actual path for today, the sky shifts from dawn colours through day to night, stars come out after dusk, and the moon shows its current phase.
+
+### Behaviour
+
+- **Sun path:** a dashed curve traces the sun's height across the full 24 hours, with midnight at the left edge and midnight at the right. The part above the horizon is drawn brighter; the part below is faint. The sun's glow follows the curve, and once it sets a small ring keeps marking where it is below the horizon.
+- **Sky:** the gradient is worked out from the sun's height: deep navy at night, violet and rose through twilight, orange at the horizon around sunrise and sunset, then pale blue by day. A warm haze gathers on the horizon near the sun at sunrise and sunset, and the hills take their colour from the sky. Text switches between dark and light to stay readable.
+- **Night:** stars fade in as the sun drops more than 4° below the horizon, twinkle, and now and then a shooting star crosses. The moon appears with its current phase. Its position in the sky is decorative, not astronomical.
+- **Preview:** drag across the sky to see any time of day. The sky, sun, badge and clock follow your pointer, and the line below says how far away that time is. When you let go, everything eases back to now. With the keyboard, ← / → move by 15 minutes, PgUp / PgDn by an hour, Home / End jump to midnight, and Escape or Enter returns to now; it also returns on its own after 4 seconds.
+- **Facts:** a countdown to the next sunrise or sunset, then sunrise and sunset with first and last light (civil twilight), daylight length with the change since yesterday, and evening golden hour with the end of the morning one. A moon row gives the phase name, how much is lit, and the days until the next full or new moon. Polar day and night are handled too ("Midnight sun", "Polar night").
+- **Location:** to start with, the sky uses a city matched to your browser's time zone (around 25 zones; for any other zone it estimates the location from your UTC offset). **Use my location** asks the browser for your position and saves it. Tapping the button again returns to the time-zone city.
+- **Load-in:** the sun rises along its path from four hours ago to now.
+- **Reduced motion:** the stars don't twinkle, there are no shooting stars, and the sky changes without easing.
+
+### Notes
+
+- The sun maths follows Vladimir Agafonkin's SunCalc (BSD licence) and is accurate to about a minute. The moon phase is counted from a known new moon using the average lunar month, which is accurate to within a few hours.
+- Everything is calculated in the browser. The only data stored is a location you choose, under `sky-clock:location`.
+
+---
+
+## Weather sky — `weather-sky.html`
+
+The sky clock's living sky, driven by the real forecast. The scene paints the current weather, the hourly strip lets you see the sky at any hour of the next day, and the panel below gives the details and the week ahead.
+
+### Behaviour
+
+- **Scene:** the sky colour comes from the sun's height, as in the sky clock, then turns grey under cloud, darker in rain and darker still in a storm. Clouds drift with the wind and grow and darken as cover thickens. Rain falls slanted by the wind direction, snow drifts and sways, and fog banks gather over the hills. In a thunderstorm, lightning flashes and forks across the sky. At night, stars and the current moon phase show through gaps in the cloud.
+- **Big readout:** the temperature, the conditions (a clear sky after dark reads "Clear night"), feels-like, and today's high and low.
+- **Next 24 hours:** a temperature curve over hourly columns showing each hour's icon, temperature and chance of rain. Hovering an hour, or tapping it on touch screens, plays that hour's sky in the scene, with the sun where it will be. Tapping pins the hour; tapping it again, the badge, or Escape returns to now. The arrow keys move between hours, and the dot on the curve follows.
+- **Details:** feels like (and why), humidity, wind with a direction arrow, today's chance of rain, UV index, and sunrise and sunset.
+- **7 days:** each day's icon, chance of rain, and low and high on a bar placed against the week's full range. The colour runs from cool blue to warm orange, and a dot on today's bar marks the current temperature.
+- **Location:** opens a search across cities worldwide using Open-Meteo's geocoding. It also offers **Use my location**, and a way back to your time zone's city. The choice is saved.
+- **Units:** °C with km/h, or °F with mph. Browsers set to US English start in °F. The choice is saved.
+- **Refreshing:** the forecast is cached for 15 minutes and refreshes on its own, or when you press ↻. If it can't be reached, the last forecast stays up with a note. If nothing has ever loaded, a clearly labelled sample forecast keeps the widget usable.
+- **Load-in:** the weather rolls in over a clear sky, the temperature curve draws itself, and the rows rise into place.
+- **Reduced motion:** clouds, rain and snow hold still, there's no lightning, and scenes change without easing.
+
+### Notes
+
+- Data comes from [Open-Meteo](https://open-meteo.com/) (free, no API key, CC BY 4.0). Keep the attribution line in the footer.
+- Add `?scene=` to the URL to force a scene while designing: `clear`, `partly`, `cloudy`, `fog`, `drizzle`, `rain`, `heavy`, `snow` or `storm`.
+- Saved in the browser: `weather-sky:location`, `weather-sky:units` and `weather-sky:cache`.
+
+---
+
+## Weather mini — `weather-mini.html`
+
+The weather sky reduced to a single card, about 640 × 330 with a 620 × 310 scene: the live sky, the current conditions, and the next few hours along the hills.
+
+### Behaviour
+
+- **Scene:** the same weather painting as `weather-sky.html`: a sky driven by the sun, drifting clouds, rain, snow, fog, lightning, stars and the moon.
+- **Readout:** the temperature, the conditions, and the feels-like temperature with today's high and low. The text switches between dark and light to suit the sky.
+- **Next hours:** "Now" plus the next five hours, each with an icon and temperature. Hovering an hour plays its sky, and moving the pointer away returns to now. Tapping pins an hour; tap it again, or tap the place pill, which reads "14:00 · Back to now" while pinned, to return. ← / → move between hours and Escape returns to now. On phones it shows five hours instead of six.
+- **Two taps:** tap the temperature to switch between °C and °F. Tap the place pill to use your location; tap it again to go back to your time zone's city.
+- **Sharing:** it shares its location, units and 15-minute forecast cache with `weather-sky.html`, and follows changes made in another open tab, so the two widgets always agree.
+- **Offline:** if Open-Meteo can't be reached, the last forecast stays up. If nothing has loaded yet, a sample forecast is shown, and the credit line says so.
+
+### Settings
+
+| Attribute    | Default | What it does                                    |
+| ------------ | ------- | ----------------------------------------------- |
+| `data-hours` | `6`     | How many hours run along the bottom, from 3 to 8. |
+
+`?scene=rain` and the other scene names work here too. Keep the "Weather data by Open-Meteo.com" credit in the corner.
+
+---
+
+## Weather type — `weather-type.html`
+
+The weather as typography: no scene, just a large thin temperature, a hand-drawn line icon and a quiet row of hours. It comes in two styles, shown one above the other on the demo page. Each card is 620 × 310, so either can be used on its own.
+
+| Style   | Markup                                                   | Look                                                                                  |
+| ------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Tinted  | `<article class="wt" data-weather-type data-style="tint">`  | A soft two-tone wash that follows the weather and the hour. The ink and accent colours change with it. |
+| Paper   | `<article class="wt" data-weather-type data-style="paper">` | Ink on light paper with a faint grain, and honey as the only accent.               |
+
+### Layout
+
+- **Top line:** the place and local time in small tracked capitals, with a °C / °F switch on the right.
+- **Hero:** the temperature at about 130px in Outfit Thin with a light raised degree sign. A hairline separates it from the condition column: a 58px line icon, the condition in Outfit Light, and "Feels 14° · H 19° · L 10°" with the feels-like figure emphasised.
+- **Hours:** "Now" plus five hours below a hairline, separated by hairlines. Each shows the hour in small tracked capitals, a small line icon and the temperature in thin figures.
+
+### Behaviour
+
+- **Icons:** hand-drawn at 48 × 48 in the text colour, with honey only in the sun's core. The hero icon has one slow motion: the sun's rays turn, clouds drift, rain and snow fall, fog lines slide, a storm bolt flickers, and a star twinkles beside the moon. The hour icons stay still. Anything behind a cloud is masked out, so lines never cross.
+- **Tint palettes:** each kind of weather has a day, a dusk and a night palette, blended by the sun's height. Clear mornings are warm honey, rain is slate blue, storms are charcoal with light ink, and clear nights are deep navy. Colours glide between states over about 1.4 seconds.
+- **Previews:** hovering an hour updates the hero. The number counts to the new temperature, the icon and words fade in, and a short accent line slides under that hour. The top line reads "15:00 forecast" with an accent underline. Tap an hour to pin it; tap it again, tap the place, or press Escape to return. ← / → step between hours.
+- **Taps:** tap the temperature, or °C / °F, to switch units. Tap the place to use your location, and tap again to go back to your time zone's city.
+- **Load-in:** each card's temperature counts up from zero while the lines and hours rise into place, with the second card slightly after the first.
+- **Phones:** the icon moves beside the conditions under the temperature, and five hours show.
+- **Shared data:** it uses the same live Open-Meteo data, cache, location and units as the other weather widgets, offline handling included. `?scene=` forces the conditions for design checks.
