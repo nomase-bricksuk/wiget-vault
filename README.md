@@ -1,14 +1,15 @@
 # widget-vault
 
-Sixteen widgets, each in its own self-contained HTML file with no GSAP. Open any of them in a browser — there's no build step, and the only dependency is Google Fonts (Outfit, Inter).
+Seventeen widgets, each in its own self-contained HTML file with no GSAP. Open any of them in a browser — there's no build step, and the only dependency is Google Fonts (Outfit, Inter).
 
-All sixteen share the same design tokens (honey, night, ink and the warm card surface), animate with CSS transitions and the Web Animations API, and respect the reduced-motion setting.
+All seventeen share the same design tokens (honey, night, ink and the warm card surface), animate with CSS transitions and the Web Animations API, and respect the reduced-motion setting.
 
 | File                   | Widget          |
 | ---------------------- | --------------- |
 | `time-tracker.html`    | Time tracker    |
 | `time-tracker-tape.html` | Time tracker (tape) |
 | `office-hours-tape.html` | Office hours (tape) |
+| `office-hours-type.html` | Office hours (type) |
 | `progress-card.html`   | Weekly progress |
 | `onboarding-card.html` | Onboarding      |
 | `calendar-card.html`   | Week calendar   |
@@ -478,3 +479,53 @@ The weather as typography: no scene, just a large thin temperature, a hand-drawn
 - **Load-in:** each card's temperature counts up from zero while the lines and hours rise into place, with the second card slightly after the first.
 - **Phones:** the icon moves beside the conditions under the temperature, and five hours show.
 - **Shared data:** it uses the same live Open-Meteo data, cache, location and units as the other weather widgets, offline handling included. `?scene=` forces the conditions for design checks.
+
+---
+
+## Office hours (type) — `office-hours-type.html`
+
+The office-hours tracker redrawn in the `weather-type.html` style: typography first, hairlines and line icons, in **Tinted** and **Paper** versions. Each card has a 620 × 310 face, and a **Day** section opens below it.
+
+Both cards on the demo page are views of one tracker. Clock in on either and both update; keep whichever style you want.
+
+### The face
+
+- **Top line:** "OFFICE HOURS · 09:00–18:00" in tracked capitals. On the right: time until opening or closing, any time outside office hours, and the **Day ⌄** toggle.
+- **Hero:** today's clocked-in time in thin Outfit numerals, with the seconds small and raised. A hairline separates it from the current status: a line icon, the status name, and how long you've been in it ("0:02 · since 21:45"). The **Clock in / Clock out** button sits on the right; it's filled to clock in and outlined to clock out.
+- **Tape:** a hairline ruler of clocked-in time gliding past a thin accent needle, with tabular minute labels. The status band is drawn as thin coloured rules, dashed for Away.
+- **Status row:** Active, Focus, Meeting and Away between hairlines, each showing its total for today. The current one gets an accent underline, and the shortcut key appears on hover. Tapping a status switches to it, or clocks you in on it.
+
+### The Day section
+
+It opens smoothly below the face and holds:
+
+- **Summary:** Online and Away totals, plus any time outside office hours.
+- **Timeline:** a hairline bar of the day, with office hours outlined in the accent colour, a thin rule for each entry and a "now" line.
+- **Status log:** entries as hairline rows, newest first. The current one counts live; others can be deleted. **Clear today** is at the bottom. Both delete and clear offer **Undo** for 6 seconds.
+
+### Styles
+
+- **Tinted:** the wash takes the current status's colour: honey for Active, cool slate for Focus, terracotta for Meeting and warm grey for Away. Off the clock it's plain paper. The ink and accent colours change with it, and the transition takes about 1.2 seconds.
+- **Paper:** ink on light paper with a faint grain. The status colours appear only as small dots, rules and the needle.
+
+### Icons
+
+Line icons at 48 × 48, each with one slow motion while you're in that status:
+
+- **Active:** a spark that pulses.
+- **Focus:** a target whose inner ring breathes.
+- **Meeting:** two speech bubbles with typing dots.
+- **Away:** a cup with rising steam.
+- **Off the clock:** a power symbol.
+
+### Settings
+
+Settings go on `<body>`:
+
+| Attribute           | Default | What it does                                               |
+| ------------------- | ------- | ---------------------------------------------------------- |
+| `data-office-start` | `9`     | Office opens (in hours; `9.5` = 09:30).                     |
+| `data-office-end`   | `18`    | Office closes.                                              |
+| `data-seed`         | on      | Set to `off` to start empty instead of with a sample morning. |
+
+Behaviour otherwise matches the tape version: Space clocks in and out, 1–4 pick a status, a status left running carries over midnight, and open tabs stay in sync. State is saved under `office-hours-type:state`, separate from `office-hours-tape.html`.
