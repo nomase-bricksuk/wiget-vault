@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ranked bars</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet" />
+  <style>
+    /* =========================================================
+       Ranked bars — an editorial chart page: newsprint, serif numerals, one red bar
+       ========================================================= */
+    :root {
+      --page: #dcd6ca;
+      --paper: #f4efe4;
+      --ink: #171614;
+      --dim: #6b665d;
+      --faint: #9d978b;
+      --rule: rgba(23, 22, 20, .14);
+      --red: #d9432a;
+      --up: #2f7a4f;
+      --down: #b0472c;
+      --serif: 'Instrument Serif', 'Times New Roman', serif;
+      --sans: 'DM Sans', system-ui, sans-serif;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: center; gap: 20px;
+      padding: 40px 16px; background: var(--page); color: var(--ink); font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+    .note { width: min(100%, 620px); color: #6b665d; font-size: 12px; line-height: 1.5; }
+    .note code { font-size: 11px; }
+
+    .chart {
+      position: relative; width: min(100%, 620px); padding: 26px 30px 24px;
+      background: var(--paper); color: var(--ink);
+      box-shadow: 0 1px 2px rgba(40, 30, 10, .08), 0 24px 50px -28px rgba(40, 30, 10, .4);
+    }
+    /* Faint newsprint grain */
+    .chart::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5; mix-blend-mode: multiply;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .4 0 0 0 0 .35 0 0 0 0 .25 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+    /* Masthead */
+    .mast { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-bottom: 10px; border-bottom: 3px double var(--ink); }
+    .mast__t { font: 600 10.5px/1 var(--sans); letter-spacing: .22em; text-transform: uppercase; }
+    .mast__t span { color: var(--red); }
+    .periods { display: flex; gap: 16px; }
+    .periods button { position: relative; padding: 2px 0; font: 400 15px/1 var(--serif); font-style: italic; color: var(--dim); transition: color .2s; }
+    .periods button::after { content: ''; position: absolute; left: 0; right: 0; bottom: -3px; height: 1.5px; background: var(--red); transform: scaleX(0); transform-origin: left; transition: transform .35s var(--ease); }
+    .periods button[aria-checked="true"] { color: var(--ink); }
+    .periods button[aria-checked="true"]::after { transform: none; }
+    .periods button:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+
+    .hl { margin-top: 18px; font: 400 38px/1.08 var(--serif); letter-spacing: -.01em; }
+    .hl em { font-style: italic; color: var(--red); }
+    .dek { margin-top: 8px; color: var(--dim); font-size: 13px; line-height: 1.45; }
+    .dek b { color: var(--ink); font-weight: 600; }
+
+    /* Board */
+    .board { position: relative; list-style: none; margin: 20px 0 0; border-top: 1px solid var(--ink); }
+    .rk {
+      position: absolute; left: 0; right: 0; top: 0; height: var(--rh, 64px);
+      display: grid; grid-template-columns: 58px minmax(0, 1fr) 92px; grid-template-rows: auto 4px; column-gap: 12px; row-gap: 8px; align-content: center;
+      border-bottom: 1px solid var(--rule);
+      transform: translateY(calc(var(--i) * var(--rh, 64px)));
+      transition: transform .8s var(--ease), opacity .4s var(--ease), background-color .2s;
+      outline: none;
+    }
+    .rk:hover, .rk:focus-visible { background: rgba(23, 22, 20, .035); }
+    .rk:focus-visible { box-shadow: inset 2px 0 0 var(--red); }
+    .chart.is-hover .rk:not(:hover):not(:focus-visible) { opacity: .5; }
+    .rk.is-out { opacity: 0; pointer-events: none; }
+    .rk__n { grid-row: 1 / 3; align-self: center; font: italic 400 44px/1 var(--serif); font-variant-numeric: lining-nums; color: var(--ink); }
+    .rk.is-top .rk__n { color: var(--red); }
+    .rk__name { min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+    .rk__name b { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 400 21px/1.1 var(--serif); }
+    .rk__name small { flex: none; color: var(--faint); font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+    .rk__val { grid-column: 3; grid-row: 1 / 3; align-self: center; display: grid; justify-items: end; gap: 3px; }
+    .rk__val b { font: 400 24px/1 var(--serif); font-variant-numeric: tabular-nums; }
+    .rk__mv { display: inline-flex; align-items: center; gap: 3px; color: var(--faint); font-size: 10px; font-weight: 600; letter-spacing: .08em; }
+    .rk__mv.up { color: var(--up); }
+    .rk__mv.down { color: var(--down); }
+    .rk__mv svg { width: 8px; height: 8px; }
+    .rk__track { grid-column: 2; grid-row: 2; position: relative; height: 4px; background: rgba(23, 22, 20, .07); }
+    .rk__fill { position: absolute; inset: 0 auto 0 0; width: var(--w, 0%); background: var(--ink); transition: width .8s var(--ease); }
+    .rk.is-top .rk__fill { background: var(--red); }
+    .rk--other .rk__n { font-size: 0; }
+    .rk--other .rk__n::before { content: '+'; font-size: 30px; color: var(--faint); }
+    .rk--other .rk__name b { font-style: italic; color: var(--dim); }
+    .rk--other .rk__fill { background: repeating-linear-gradient(90deg, rgba(23,22,20,.35) 0 2px, transparent 2px 5px); }
+
+    /* Footer stats in columns */
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 18px; border-top: 1px solid var(--ink); }
+    .fact { padding: 12px 14px 0; border-left: 1px solid var(--rule); }
+    .fact:first-child { padding-left: 0; border-left: 0; }
+    .fact dt { font-size: 10px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--dim); }
+    .fact dd { margin-top: 6px; font: 400 24px/1.1 var(--serif); }
+    .fact dd small { display: block; margin-top: 2px; color: var(--dim); font: 400 12px/1.35 var(--sans); }
+
+    @media (max-width: 560px) {
+      .chart { padding: 20px 18px 18px; }
+      .mast { flex-wrap: wrap; row-gap: 10px; }
+      .hl { font-size: 30px; }
+      .rk { grid-template-columns: 38px minmax(0, 1fr) 64px; column-gap: 8px; }
+      .rk__n { font-size: 34px; }
+      .rk__name { display: grid; gap: 1px; }
+      .rk__name b { font-size: 18px; }
+      .rk__val b { font-size: 20px; }
+      .fact { padding: 10px 8px 0; }
+      .fact dd { font-size: 19px; }
+      .fact dd small { font-size: 11px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .rk, .rk__fill, .periods button::after { transition: none; } }
+  </style>
+</head>
+<body>
+
+  <article class="chart" data-ranked></article>
+
+  <p class="note">Sample data, generated for the demo. Pass your own items to <code>RankedBars.mount()</code>.</p>
+
+  <script>
+  /* =============================================================
+     RankedBars — top items as labelled bars that reorder on change.
+     RankedBars.mount(el, {
+       context: 'Studio', noun: 'tracked', format: (v) => '38h',
+       periods: [{ id: 'week', label: 'Week', name: 'this week', prevName: 'last week',
+                   items: [{ id, name, sub, value }], prev: { id: value } }],
+       period: 'month', top: 5,    // rows before the rest fold into "Other"
+     })  →  { update(periods) }
+     ============================================================= */
+  window.RankedBars = (() => {
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    const mobile = matchMedia('(max-width: 560px)');
+    const UP = '<svg viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M5 1.5 9 7.5H1Z"/></svg>';
+    const DOWN = '<svg viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M5 8.5 1 2.5h8Z"/></svg>';
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const ordinal = (n) => (n % 100 >= 11 && n % 100 <= 13 ? `${n}th` : `${n}${['th', 'st', 'nd', 'rd'][n % 10] || 'th'}`);
+    const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+    function mount(el, cfg) {
+      const top = cfg.top || 5;
+      const fmt = cfg.format || ((v) => Math.round(v).toLocaleString('en-US'));
+      let period = cfg.periods.find((p) => p.id === cfg.period) || cfg.periods[0];
+
+      el.innerHTML = `
+        <header class="mast">
+          <p class="mast__t">${esc(cfg.context)} <span>·</span> Top ${top}</p>
+          <div class="periods" role="radiogroup" aria-label="Period">${cfg.periods.map((p) => `<button type="button" role="radio" data-p="${p.id}" aria-checked="false">${esc(p.label)}</button>`).join('')}</div>
+        </header>
+        <h2 class="hl" data-hl aria-live="polite"></h2>
+        <p class="dek" data-dek></p>
+        <ol class="board" data-board aria-label="Ranking"></ol>
+        <dl class="facts" data-facts></dl>`;
+      const q = (s) => el.querySelector(s);
+      const rows = new Map();
+      const rankOf = (list) => [...list].sort((a, b) => b.value - a.value);
+      const rowH = () => (mobile.matches ? 62 : 64);
+
+      function render(first = false) {
+        const ranked = rankOf(period.items);
+        const shown = ranked.slice(0, top), rest = ranked.slice(top);
+        const total = ranked.reduce((a, x) => a + x.value, 0);
+        const max = Math.max(...shown.map((x) => x.value), 1);
+        const prevRank = rankOf(Object.entries(period.prev || {}).map(([id, value]) => ({ id, value }))).map((x) => x.id);
+        const otherVal = rest.reduce((a, x) => a + x.value, 0);
+        const list = [...shown.map((x, i) => ({ ...x, i })), ...(rest.length ? [{ id: '__other', name: 'Everything else', sub: `${rest.length} more`, value: otherVal, i: shown.length, other: true }] : [])];
+
+        const board = q('[data-board]');
+        board.style.setProperty('--rh', `${rowH()}px`);
+        board.style.height = `${list.length * rowH()}px`;
+        const seen = new Set();
+        list.forEach((x) => {
+          seen.add(x.id);
+          let li = rows.get(x.id);
+          const isNew = !li;
+          if (isNew) {
+            li = document.createElement('li');
+            li.className = `rk${x.other ? ' rk--other' : ''}`;
+            li.tabIndex = 0;
+            li.innerHTML = `<span class="rk__n" data-n></span><span class="rk__name"><b data-name></b><small data-sub></small></span>
+              <span class="rk__track" aria-hidden="true"><i class="rk__fill"></i></span><span class="rk__val"><b data-val></b><span class="rk__mv" data-mv></span></span>`;
+            board.append(li); rows.set(x.id, li);
+            li.style.setProperty('--i', x.i); li.style.setProperty('--w', '0%');
+            if (!first && !reduce.matches) { li.classList.add('is-out'); requestAnimationFrame(() => li.classList.remove('is-out')); }
+          }
+          li.classList.remove('is-out');
+          li.classList.toggle('is-top', x.i === 0 && !x.other);
+          li.style.setProperty('--i', x.i);
+          li.querySelector('[data-n]').textContent = String(x.i + 1);
+          li.querySelector('[data-name]').textContent = x.name;
+          li.querySelector('[data-sub]').textContent = x.sub || '';
+          li.querySelector('[data-val]').textContent = fmt(x.value);
+          const was = prevRank.indexOf(x.id), mv = li.querySelector('[data-mv]');
+          if (x.other) { mv.textContent = `${Math.round(x.value / total * 100)}%`; mv.className = 'rk__mv'; }
+          else if (was < 0) { mv.textContent = 'NEW'; mv.className = 'rk__mv up'; }
+          else if (was === x.i) { mv.textContent = 'HELD'; mv.className = 'rk__mv'; }
+          else { const d = was - x.i; mv.innerHTML = `${d > 0 ? UP : DOWN}${Math.abs(d)}`; mv.className = `rk__mv ${d > 0 ? 'up' : 'down'}`; }
+          const w = Math.min(100, (x.value / max) * 100);
+          const setW = () => li.style.setProperty('--w', `${w.toFixed(2)}%`);
+          if (isNew && !reduce.matches) setTimeout(setW, first ? 150 + x.i * 80 : 60); else setW();
+          li.setAttribute('aria-label', `${x.other ? 'Other' : `Rank ${x.i + 1}`}: ${x.name}, ${fmt(x.value)}, ${Math.round(x.value / total * 100)}%${!x.other && was >= 0 && was !== x.i ? `, ${was > x.i ? 'up' : 'down'} ${Math.abs(was - x.i)} from ${period.prevName}` : ''}${!x.other && was < 0 ? ', new' : ''}`);
+        });
+        rows.forEach((li, id) => { if (!seen.has(id)) { li.classList.add('is-out'); li.style.setProperty('--w', '0%'); } });
+
+        const lead = shown[0], wasLead = prevRank.indexOf(lead.id);
+        q('[data-hl]').innerHTML = `<em>${esc(lead.name)}</em> led ${esc(period.name)} with ${fmt(lead.value)}.`;
+        q('[data-dek]').innerHTML = `<b>${Math.round(lead.value / total * 100)}%</b> of the ${fmt(total)} ${cfg.noun} ${esc(period.name)} — ${wasLead === 0 ? `it was also on top ${period.prevName}` : wasLead < 0 ? `new since ${period.prevName}` : `up from ${ordinal(wasLead + 1)} place ${period.prevName}`}.`;
+        const climber = shown.map((x, i) => ({ x, d: prevRank.indexOf(x.id) < 0 ? 0 : prevRank.indexOf(x.id) - i })).sort((a, b) => b.d - a.d)[0];
+        const top3 = shown.slice(0, 3).reduce((a, x) => a + x.value, 0);
+        q('[data-facts]').innerHTML = [
+          ['Total', fmt(total), `${cfg.noun} ${period.name}`],
+          ['Top three', `${Math.round(top3 / total * 100)}%`, 'of all hours'],
+          ['Biggest climb', climber && climber.d > 0 ? `▲ ${climber.d}` : '—', climber && climber.d > 0 ? esc(climber.x.name) : 'No change in order'],
+        ].map(([k, v, s]) => `<div class="fact"><dt>${k}</dt><dd>${v}<small>${s}</small></dd></div>`).join('');
+        el.querySelectorAll('[data-p]').forEach((b) => { const on = b.dataset.p === period.id; b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
+        el.setAttribute('aria-label', `${cfg.context}, ${period.name}: ${lead.name} leads with ${fmt(lead.value)}`);
+      }
+
+      const tabs = q('.periods');
+      tabs.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-p]');
+        if (!b || b.dataset.p === period.id) return;
+        period = cfg.periods.find((p) => p.id === b.dataset.p);
+        render();
+      });
+      tabs.addEventListener('keydown', (e) => {
+        const step = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+        if (!step) return;
+        e.preventDefault();
+        const i = cfg.periods.indexOf(period), n = cfg.periods[(i + step + cfg.periods.length) % cfg.periods.length];
+        q(`[data-p="${n.id}"]`).click(); q(`[data-p="${n.id}"]`).focus();
+      });
+      const board = q('[data-board]');
+      board.addEventListener('pointerover', (e) => { if (e.target.closest('.rk')) el.classList.add('is-hover'); });
+      board.addEventListener('pointerleave', () => el.classList.remove('is-hover'));
+      board.addEventListener('focusin', () => el.classList.add('is-hover'));
+      board.addEventListener('focusout', (e) => { if (!board.contains(e.relatedTarget)) el.classList.remove('is-hover'); });
+      board.addEventListener('keydown', (e) => {
+        const li = e.target.closest('.rk'), step = { ArrowDown: 1, ArrowUp: -1 }[e.key];
+        if (!li || !step) return;
+        e.preventDefault();
+        const order = [...rows.values()].filter((r) => !r.classList.contains('is-out')).sort((a, b) => +a.style.getPropertyValue('--i') - +b.style.getPropertyValue('--i'));
+        order[(order.indexOf(li) + step + order.length) % order.length].focus();
+      });
+      mobile.addEventListener('change', () => render());
+      render(true);
+      return { update(periods) { cfg.periods = periods; period = periods.find((p) => p.id === period.id) || periods[0]; render(); } };
+    }
+    return { mount };
+  })();
+
+  /* ---------- Demo: hours by project ---------- */
+  (() => {
+    const PROJECTS = [
+      ['site', 'Nomase site', 'Studio'], ['brand', 'Brand refresh', 'Kōbō Coffee'], ['shop', 'Shop rebuild', 'Hanami Goods'],
+      ['wp', 'WordPress theme', 'Sakura Dental'], ['app', 'Matsuri app', 'Internal'], ['3d', 'Three.js landing', 'Oto Records'],
+      ['ops', 'Hosting & SSL', 'Various'], ['admin', 'Admin', 'Internal'],
+    ];
+    function hours(seed, scale, bias = {}) {
+      let s = seed;
+      const rnd = () => ((s = (s * 16807) % 2147483647), (s - 1) / 2147483646);
+      return Object.fromEntries(PROJECTS.map(([id], i) => [id, Math.round((scale * (0.25 + rnd()) * (1 - i * 0.07) + (bias[id] || 0)) * 2) / 2]));
+    }
+    const mk = (id, label, name, prevName, cur, prev) => ({
+      id, label, name, prevName, prev,
+      items: PROJECTS.map(([pid, nm, sub]) => ({ id: pid, name: nm, sub, value: cur[pid] })).filter((x) => x.value > 0),
+    });
+    RankedBars.mount(document.querySelector('[data-ranked]'), {
+      context: 'Studio hours', noun: 'hours tracked', format: (v) => `${Number.isInteger(v) ? v : v.toFixed(1)}h`,
+      periods: [
+        mk('week', 'Week', 'this week', 'last week', hours(7, 9, { brand: 5 }), hours(8, 9)),
+        mk('month', 'Month', 'this month', 'last month', hours(17, 34, { shop: 14 }), hours(18, 34, { site: 10 })),
+        mk('quarter', 'Quarter', 'this quarter', 'last quarter', hours(27, 96, { site: 30 }), hours(28, 96, { wp: 40 })),
+      ],
+      period: 'month', top: 5,
+    });
+  })();
+  </script>
+</body>
+</html>

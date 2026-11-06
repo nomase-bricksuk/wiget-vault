@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Call recording</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@200;300;400;500&family=Geist:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* =========================================================
+       Call recording — the month's calls, end to end, as one waveform you can play back
+       ========================================================= */
+    :root {
+      --page: #e9e6df;
+      --deck: #18181b;
+      --deck-2: #222226;
+      --text: #f1efe9;
+      --dim: #9b9891;
+      --faint: #615f5a;
+      --rule: rgba(241, 239, 233, .08);
+      --rule-2: rgba(241, 239, 233, .16);
+      --one: #84b4ff;
+      --room: #ffb547;
+      --rec: #ff4d3d;
+      --mono: 'Martian Mono', ui-monospace, monospace;
+      --sans: 'Geist', system-ui, sans-serif;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { background: var(--page); }
+    body {
+      min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: center; gap: 16px;
+      padding: 40px 16px; background: var(--page); color: var(--text); font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    }
+    button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+    .sr-only { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    table.sr-only { display: block; }
+    .note { width: min(100%, 860px); color: #77736b; font-size: 12px; line-height: 1.5; }
+    .note code { font-family: var(--mono); font-size: 10.5px; }
+
+    .deck {
+      position: relative; width: min(100%, 860px); padding: 22px 26px 22px; border-radius: 24px;
+      background: linear-gradient(180deg, var(--deck-2), var(--deck) 40%);
+      box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 0 0 1px rgba(0,0,0,.4), 0 40px 70px -35px rgba(20, 16, 8, .6);
+    }
+
+    /* Top bar */
+    .top { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+    .rec { display: inline-flex; align-items: center; gap: 9px; font: 500 10.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+    .rec i { width: 8px; height: 8px; border-radius: 50%; background: var(--rec); box-shadow: 0 0 10px var(--rec); }
+    .deck.is-playing .rec i { animation: blink 1s steps(2, start) infinite; }
+    @keyframes blink { to { visibility: hidden; } }
+    .pager { display: flex; align-items: center; gap: 4px; }
+    .pager button { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; color: var(--dim); transition: background-color .2s, color .2s; }
+    .pager button:hover:not(:disabled) { background: var(--rule); color: var(--text); }
+    .pager button:disabled { opacity: .3; cursor: default; }
+    .pager button:focus-visible, .play:focus-visible, .wave:focus-visible { outline: 2px solid var(--one); outline-offset: 2px; }
+    .pager svg { width: 16px; height: 16px; }
+    .pager p { min-width: 128px; text-align: center; font: 400 12px/1 var(--mono); color: var(--text); }
+
+    /* Timecode + transport */
+    .head { display: flex; align-items: center; gap: 20px; margin-top: 20px; }
+    .play {
+      flex: none; width: 58px; height: 58px; display: grid; place-items: center; border-radius: 50%;
+      background: var(--text); color: var(--deck); transition: transform .2s var(--ease), background-color .2s;
+    }
+    .play:hover { transform: scale(1.05); }
+    .play:active { transform: scale(.96); }
+    .play svg { width: 22px; height: 22px; }
+    .tc { font: 200 50px/1 var(--mono); letter-spacing: -.04em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .tc span { color: var(--faint); }
+    .tc-sub { margin-top: 8px; color: var(--dim); font-size: 13px; }
+    .tc-sub b { color: var(--text); font-weight: 500; }
+
+    /* Waveform */
+    .wave { position: relative; height: 190px; margin-top: 22px; cursor: pointer; touch-action: none; border-radius: 6px; }
+    .wave svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .mid { stroke: var(--rule-2); }
+    .dayline { stroke: var(--rule); }
+    .daylab { fill: var(--faint); font: 400 9px var(--mono); }
+    .daylab.is-hot { fill: var(--text); }
+    .bars-dim rect { opacity: .22; }
+    .call { transition: opacity .2s; }
+    .deck.is-hover .bars-lit .call:not(.is-hot), .deck.is-hover .bars-dim .call:not(.is-hot) { opacity: .35; }
+    .head-line { stroke: var(--text); stroke-width: 1.5; }
+    .head-cap { fill: var(--text); }
+    .hover-line { stroke: var(--text); stroke-dasharray: 2 3; opacity: 0; }
+    .deck.is-hover .hover-line { opacity: .5; }
+    .ruler { display: flex; justify-content: space-between; margin-top: 8px; font: 400 9.5px/1 var(--mono); color: var(--faint); font-variant-numeric: tabular-nums; }
+
+    .tip {
+      position: absolute; left: 0; top: -6px; z-index: 2; padding: 9px 12px; border-radius: 10px; min-width: 170px;
+      background: var(--text); color: var(--deck); font-size: 12px; line-height: 1.45; pointer-events: none;
+      opacity: 0; transform: translateY(-100%); transition: opacity .15s;
+    }
+    .deck.is-hover .tip { opacity: 1; }
+    .tip b { display: block; font-weight: 600; }
+    .tip span { display: inline-flex; align-items: center; gap: 6px; }
+    .tip span i { width: 8px; height: 8px; border-radius: 2px; background: var(--c); }
+    .tip small { display: block; color: #5d5b56; font: 400 10.5px/1.5 var(--mono); }
+
+    /* Meters */
+    .meters { display: grid; grid-template-columns: 1.2fr 1.2fr 1fr 1fr; gap: 10px; margin-top: 18px; }
+    .meter { padding: 12px 14px; border-radius: 14px; background: rgba(0, 0, 0, .25); box-shadow: 0 0 0 1px var(--rule) inset; text-align: left; transition: background-color .2s, opacity .25s; }
+    button.meter:hover, button.meter.is-on { background: rgba(255, 255, 255, .05); }
+    .deck.is-solo button.meter:not(.is-on) { opacity: .45; }
+    .meter dt { display: flex; align-items: center; gap: 7px; color: var(--dim); font-size: 12px; }
+    .meter dt i { width: 8px; height: 8px; border-radius: 2px; background: var(--c); }
+    .meter dd { margin-top: 6px; font: 300 22px/1 var(--mono); letter-spacing: -.03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .meter dd small { margin-left: 4px; font-size: 11px; color: var(--dim); letter-spacing: 0; }
+    .meter .lvl { height: 3px; margin-top: 10px; border-radius: 2px; background: var(--rule); overflow: hidden; }
+    .meter .lvl i { display: block; height: 100%; width: var(--w, 0%); background: var(--c); }
+    .meter em { display: block; margin-top: 7px; font-style: normal; color: var(--faint); font-size: 11px; }
+
+    @media (max-width: 640px) {
+      .deck { padding: 18px 16px; border-radius: 20px; }
+      .top { flex-wrap: wrap; }
+      .head { gap: 14px; }
+      .play { width: 48px; height: 48px; }
+      .tc { font-size: 30px; white-space: normal; }
+      .tc span { display: block; margin-top: 4px; font-size: 15px; }
+      .head > div { min-width: 0; }
+      .wave { height: 150px; }
+      .meters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .meter dd { font-size: 18px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .deck.is-playing .rec i { animation: none; } .play, .call, .meter { transition: none; } }
+  </style>
+</head>
+<body>
+
+  <section class="deck" data-deck aria-label="Call recording"></section>
+  <p class="note">Each burst is one call, laid end to end in the order they happened; its width is the call’s length. Sample calls, generated for the demo; October matches the call-usage totals. Pass your own to <code>CallRecording.mount()</code>.</p>
+
+  <script>
+  /* =============================================================
+     CallRecording — a month of calls played back as one waveform.
+     CallRecording.mount(el, {
+       calls: [{ date: Date, kind: 'one' | 'room', minutes: n }],  // date carries the start time
+       rate: 0.002, month: { y, m }, duration: 7000,                // playback length in ms
+     })  →  { update(calls) }
+     ============================================================= */
+  window.CallRecording = (() => {
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+    const KIND = { one: { name: 'One-on-one', c: 'var(--one)', hex: '#84b4ff' }, room: { name: 'Room calls', c: 'var(--room)', hex: '#ffb547' } };
+    const MONTH = (y, m) => new Date(y, m, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const p2 = (n) => String(n).padStart(2, '0');
+    const tc = (min) => { const s = Math.round(min * 60); return `${p2(Math.floor(s / 3600))}:${p2(Math.floor(s / 60) % 60)}:${p2(s % 60)}`; };
+    const mins = (v) => (Math.round(v * 10) / 10).toFixed(1);
+    const ICON = {
+      play: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5Z"/></svg>',
+      pause: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4.5" width="4" height="15" rx="1"/><rect x="14" y="4.5" width="4" height="15" rx="1"/></svg>',
+      replay: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9"/><path d="M4 4v5h5"/></svg>',
+    };
+    const ARR = (d) => `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+    // Small seeded noise so each call keeps the same "voice" between redraws.
+    const noise = (seed) => { let s = seed % 2147483647 || 1; return () => ((s = (s * 16807) % 2147483647), (s - 1) / 2147483646); };
+
+    function mount(el, cfg) {
+      const rate = cfg.rate ?? 0.002, DUR = cfg.duration || 7000;
+      let calls = cfg.calls;
+      const now = new Date();
+      let cur = cfg.month || { y: now.getFullYear(), m: now.getMonth() };
+      let list = [], T = 0, pos = 1, playing = false, raf = 0, hot = -1, solo = null, G = null;
+
+      el.innerHTML = `
+        <header class="top">
+          <p class="rec"><i aria-hidden="true"></i>Call usage · recording</p>
+          <nav class="pager" aria-label="Month">
+            <button type="button" data-step="-1" aria-label="Previous month">${ARR('M12.5 4.5 7 10l5.5 5.5')}</button>
+            <p data-month aria-live="polite"></p>
+            <button type="button" data-step="1" aria-label="Next month">${ARR('M7.5 4.5 13 10l-5.5 5.5')}</button>
+          </nav>
+        </header>
+        <div class="head">
+          <button class="play" type="button" data-play aria-label="Play back the month"></button>
+          <div><p class="tc" data-tc aria-hidden="true"></p><p class="tc-sub" data-sub aria-live="polite"></p></div>
+        </div>
+        <div class="wave" data-wave tabindex="0" role="slider" aria-label="Playback position">
+          <svg data-svg aria-hidden="true"></svg>
+          <div class="tip" data-tip aria-hidden="true"></div>
+        </div>
+        <div class="ruler" data-ruler aria-hidden="true"></div>
+        <dl class="meters" data-meters></dl>
+        <table class="sr-only" data-table></table>`;
+      const q = (s) => el.querySelector(s);
+
+      function month() {
+        list = calls.filter((c) => c.date.getFullYear() === cur.y && c.date.getMonth() === cur.m).sort((a, b) => a.date - b.date);
+        let t = 0;
+        list.forEach((c, i) => { c.t0 = t; t += c.minutes; c.t1 = t; c.i = i; });
+        T = t;
+      }
+      const at = (t) => { // totals up to recording time t
+        const o = { one: 0, room: 0, calls: 0 };
+        list.forEach((c) => { if (t > c.t0) { o[c.kind] += Math.min(c.minutes, t - c.t0); o.calls++; } });
+        return o;
+      };
+
+      function draw() {
+        const box = q('[data-wave]'), W = box.clientWidth, H = box.clientHeight;
+        if (!W) return;
+        const top = 16, mid = top + (H - top) / 2, amp = (H - top) / 2 - 4;
+        const dayGap = 5, callGap = 2, pitch = W < 500 ? 2.5 : 3, bw = pitch - 1;
+        const days = new Set(list.map((c) => c.date.getDate())).size;
+        const usable = Math.max(10, W - Math.max(0, days - 1) * dayGap - Math.max(0, list.length - days) * callGap);
+        let x = 0, lastDay = null, bars = '', lines = '', labs = '';
+        const segs = [];
+        list.forEach((c) => {
+          const d = c.date.getDate();
+          if (lastDay !== null) x += d !== lastDay ? dayGap : callGap;
+          if (d !== lastDay) {
+            if (lastDay !== null) lines += `<line class="dayline" x1="${(x - dayGap / 2).toFixed(1)}" x2="${(x - dayGap / 2).toFixed(1)}" y1="${top}" y2="${H}"/>`;
+            labs += `<text class="daylab" data-day="${d}" x="${x.toFixed(1)}" y="9">${d}</text>`;
+          }
+          lastDay = d;
+          const w = Math.max(pitch * 2, (c.minutes / (T || 1)) * usable);
+          const n = Math.max(2, Math.floor(w / pitch));
+          const rnd = noise(+c.date + Math.round(c.minutes * 10));
+          let r = '';
+          for (let k = 0; k < n; k++) {
+            const u = (k + 0.5) / n;
+            const env = Math.pow(Math.sin(Math.PI * u), 0.6);                  // swell in, fade out
+            const talk = c.kind === 'room' ? 0.55 + 0.45 * rnd() : 0.25 + 0.75 * Math.pow(rnd(), 1.6); // rooms are busier
+            const loud = 0.35 + 0.65 * Math.min(1, c.minutes / 8);           // longer calls carry more
+            const h = Math.max(1.5, amp * env * talk * loud);
+            r += `<rect x="${(x + k * pitch).toFixed(1)}" y="${(mid - h).toFixed(1)}" width="${bw}" height="${(h * 2).toFixed(1)}" rx="${bw / 2}"/>`;
+          }
+          segs.push({ c, x0: x, x1: x + n * pitch - 1 });
+          bars += `<g class="call" data-i="${c.i}" fill="${KIND[c.kind].hex}"${solo && solo !== c.kind ? ' opacity=".18"' : ''}>${r}</g>`;
+          x += n * pitch;
+        });
+        const span = x || W, sx = W / span;   // fit exactly to the width
+        const id = `clip${Math.random().toString(36).slice(2, 7)}`;
+        q('[data-svg]').innerHTML = `
+          <defs><clipPath id="${id}"><rect data-clip x="0" y="0" width="0" height="${H}"/></clipPath></defs>
+          <g transform="scale(${sx.toFixed(4)} 1)">${lines}</g>
+          <line class="mid" x1="0" x2="${W}" y1="${mid}" y2="${mid}"/>
+          <g transform="scale(${sx.toFixed(4)} 1)" class="bars-dim">${bars}</g>
+          <g clip-path="url(#${id})"><g transform="scale(${sx.toFixed(4)} 1)" class="bars-lit">${bars}</g></g>
+          <g transform="scale(${sx.toFixed(4)} 1)">${labs}</g>
+          <line class="hover-line" data-hl x1="0" x2="0" y1="${top}" y2="${H}"/>
+          <line class="head-line" data-ph x1="0" x2="0" y1="${top - 2}" y2="${H}"/>
+          <circle class="head-cap" data-pc cx="0" cy="${top - 2}" r="3.5"/>`;
+        // Day labels can't be scaled without squashing the text: place them in screen space instead.
+        q('[data-svg]').querySelectorAll('.daylab').forEach((t, i, all) => {
+          const xx = +t.getAttribute('x') * sx;
+          t.parentNode.removeAttribute('transform');
+          t.setAttribute('x', xx.toFixed(1));
+          const prev = all[i - 1];
+          if (prev && xx - +prev.getAttribute('x') < 16 && prev.style.display !== 'none') t.style.display = 'none';
+        });
+        G = { segs: segs.map((s) => ({ ...s, x0: s.x0 * sx, x1: s.x1 * sx })), W, sx };
+        const ticks = 5;
+        q('[data-ruler]').innerHTML = Array.from({ length: ticks }, (_, i) => `<span>${tc((T * i) / (ticks - 1))}</span>`).join('');
+        setPos(pos);
+      }
+
+      // Recording time ↔ x: walk the segments so gaps between calls take no time.
+      const tToX = (t) => {
+        if (!G || !G.segs.length) return 0;
+        for (const s of G.segs) if (t <= s.c.t1) return s.x0 + ((t - s.c.t0) / s.c.minutes) * (s.x1 - s.x0);
+        return G.W;
+      };
+      const xToT = (x) => {
+        if (!G || !G.segs.length) return 0;
+        let best = G.segs[0];
+        for (const s of G.segs) { if (x >= s.x0) best = s; }
+        return clamp(best.c.t0 + clamp((x - best.x0) / Math.max(1, best.x1 - best.x0), 0, 1) * best.c.minutes, 0, T);
+      };
+
+      function setPos(p) {
+        pos = clamp(p, 0, 1);
+        const t = pos * T, x = tToX(t);
+        const svg = q('[data-svg]');
+        svg.querySelector('[data-clip]')?.setAttribute('width', x.toFixed(1));
+        ['x1', 'x2'].forEach((a) => svg.querySelector('[data-ph]')?.setAttribute(a, x.toFixed(1)));
+        svg.querySelector('[data-pc]')?.setAttribute('cx', x.toFixed(1));
+        meters(t);
+        const wave = q('[data-wave]');
+        wave.setAttribute('aria-valuemin', 0); wave.setAttribute('aria-valuemax', 100); wave.setAttribute('aria-valuenow', Math.round(pos * 100));
+        wave.setAttribute('aria-valuetext', `${tc(t)} of ${tc(T)}`);
+      }
+
+      function meters(t) {
+        const o = at(t), full = at(T + 1), played = t < T - 1e-6;
+        q('[data-tc]').innerHTML = played ? `${tc(t)}<span> / ${tc(T)}</span>` : tc(T);
+        const active = list.find((c) => t > c.t0 && t <= c.t1);
+        q('[data-sub]').innerHTML = !list.length ? 'No calls this month.'
+          : played && active ? `${active.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · <b>${KIND[active.kind].name.replace(' calls', ' call')}</b>, ${mins(active.minutes)} min`
+          : `<b>${mins(T)} min</b> of calls in ${MONTH(cur.y, cur.m).split(' ')[0]}, played back in ${DUR / 1000} seconds.`;
+        const tot = { one: full.one, room: full.room, calls: full.calls, cost: T };
+        const val = { one: mins(o.one), room: mins(o.room), calls: String(o.calls), cost: `$${((o.one + o.room) * rate).toFixed(4)}` };
+        const frac = { one: o.one, room: o.room, calls: o.calls, cost: o.one + o.room };
+        Object.keys(val).forEach((k) => {
+          const m = q(`[data-m="${k}"]`); if (!m) return;
+          m.querySelector('[data-v]').textContent = val[k];
+          m.querySelector('.lvl i').style.setProperty('--w', `${tot[k] ? (frac[k] / tot[k] * 100).toFixed(1) : 0}%`);
+        });
+        q('[data-m="calls"] small').textContent = ` / ${full.calls}`;
+        q('[data-play]').innerHTML = playing ? ICON.pause : pos >= 1 && T ? ICON.replay : ICON.play;
+        q('[data-play]').setAttribute('aria-label', playing ? 'Pause' : 'Play back the month');
+      }
+
+      function play() {
+        if (!T) return;
+        if (playing) { playing = false; cancelAnimationFrame(raf); el.classList.remove('is-playing'); meters(pos * T); return; }
+        if (pos >= 1) pos = 0;
+        playing = true; el.classList.add('is-playing');
+        let last = performance.now();
+        (function step(t) {
+          pos = Math.min(1, pos + (t - last) / DUR); last = t;
+          setPos(pos);
+          if (pos >= 1) { playing = false; el.classList.remove('is-playing'); meters(T); return; }
+          raf = requestAnimationFrame(step);
+        })(last);
+      }
+
+      function hover(x) {
+        if (!G) return;
+        const s = x == null ? null : G.segs.find((g) => x >= g.x0 - 1 && x <= g.x1 + 1);
+        const i = s ? s.c.i : -1;
+        el.classList.toggle('is-hover', i >= 0);
+        if (i === hot && i >= 0) { moveTip(s); return; }
+        hot = i;
+        el.querySelectorAll('.call').forEach((g) => g.classList.toggle('is-hot', +g.dataset.i === i));
+        el.querySelectorAll('.daylab').forEach((t) => t.classList.toggle('is-hot', s && +t.dataset.day === s.c.date.getDate()));
+        if (s) moveTip(s);
+      }
+      function moveTip(s) {
+        const c = s.c, tip = q('[data-tip]'), k = KIND[c.kind];
+        tip.innerHTML = `<b>${c.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · ${c.date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</b>
+          <span style="--c:${k.c}"><i></i>${k.name.replace(' calls', ' call')} · ${mins(c.minutes)} min</span><small>${tc(c.t0)} → ${tc(c.t1)} · $${(c.minutes * rate).toFixed(4)}</small>`;
+        const w = tip.offsetWidth, mx = (s.x0 + s.x1) / 2;
+        tip.style.left = `${clamp(mx - w / 2, 0, G.W - w).toFixed(0)}px`;
+        const hl = q('[data-hl]'); hl.setAttribute('x1', mx); hl.setAttribute('x2', mx);
+      }
+
+      function render() {
+        if (playing) play();
+        month(); pos = 1; hot = -1; el.classList.remove('is-hover');
+        q('[data-month]').textContent = MONTH(cur.y, cur.m);
+        const M = [
+          ['one', KIND.one.name, 'min', 'Never limited', true], ['room', KIND.room.name, 'min', 'No monthly limit', true],
+          ['calls', 'Calls', '', `${list.length ? mins(T / list.length) : '0'} min average`, false], ['cost', 'Cost', '', `$${rate} per person-minute · free in beta`, false],
+        ];
+        q('[data-meters]').innerHTML = M.map(([k, nm, unit, note, btn]) => {
+          const tag = btn ? 'button' : 'div';
+          return `<${tag} class="meter${solo === k ? ' is-on' : ''}" data-m="${k}" ${btn ? `type="button" data-solo="${k}" aria-pressed="${solo === k}"` : ''} style="--c:${KIND[k]?.c || 'var(--text)'}">
+            <dt>${KIND[k] ? '<i aria-hidden="true"></i>' : ''}${nm}</dt><dd><span data-v></span><small>${unit}</small></dd>
+            <div class="lvl" aria-hidden="true"><i></i></div><em>${note}</em></${tag}>`;
+        }).join('');
+        const ms = calls.map((c) => c.date.getFullYear() * 12 + c.date.getMonth());
+        const k = cur.y * 12 + cur.m;
+        q('[data-step="-1"]').disabled = !ms.length || k <= Math.min(...ms);
+        q('[data-step="1"]').disabled = k >= now.getFullYear() * 12 + now.getMonth();
+        q('[data-table]').innerHTML = `<caption>Calls in ${MONTH(cur.y, cur.m)}</caption><thead><tr><th>Start</th><th>Kind</th><th>Minutes</th><th>Cost</th></tr></thead><tbody>${list.map((c) => `<tr><td>${c.date.toLocaleString('en-US')}</td><td>${KIND[c.kind].name}</td><td>${mins(c.minutes)}</td><td>$${(c.minutes * rate).toFixed(4)}</td></tr>`).join('')}</tbody>`;
+        el.setAttribute('aria-label', `Call usage, ${MONTH(cur.y, cur.m)}: ${list.length} calls, ${mins(T)} minutes, cost $${(T * rate).toFixed(4)}`);
+        draw();
+        // Intro: sweep once on first view of a month.
+        if (!reduce.matches && T) { pos = 0; setPos(0); setTimeout(play, 350); }
+      }
+
+      const wave = q('[data-wave]');
+      const localX = (e) => e.clientX - wave.getBoundingClientRect().left;
+      let drag = false;
+      wave.addEventListener('pointermove', (e) => { if (drag) setPos(xToT(localX(e)) / T); hover(localX(e)); });
+      wave.addEventListener('pointerdown', (e) => { if (!T) return; drag = true; wave.setPointerCapture(e.pointerId); if (playing) play(); setPos(xToT(localX(e)) / T); });
+      wave.addEventListener('pointerup', () => { drag = false; });
+      wave.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') hover(null); });
+      wave.addEventListener('keydown', (e) => {
+        if (!T) return;
+        if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); play(); return; }
+        // Arrow keys jump call to call.
+        const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+        if (!step) return;
+        e.preventDefault(); if (playing) play();
+        const t = pos * T;
+        const idx = step > 0 ? list.findIndex((c) => c.t0 > t + 1e-6) : (() => { let j = -1; list.forEach((c, i) => { if (c.t0 < t - 1e-6) j = i; }); return j; })();
+        const c = list[clamp(idx < 0 ? (step > 0 ? list.length - 1 : 0) : idx, 0, list.length - 1)];
+        setPos((c.t0 + 1e-4) / T);
+        const s = G.segs[c.i]; hover((s.x0 + s.x1) / 2);
+      });
+      wave.addEventListener('blur', () => hover(null));
+      q('[data-play]').addEventListener('click', play);
+      q('.pager').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-step]'); if (!b || b.disabled) return;
+        const t = new Date(cur.y, cur.m + +b.dataset.step, 1); cur = { y: t.getFullYear(), m: t.getMonth() };
+        render();
+      });
+      q('[data-meters]').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-solo]'); if (!b) return;
+        solo = solo === b.dataset.solo ? null : b.dataset.solo;
+        el.classList.toggle('is-solo', !!solo);
+        el.querySelectorAll('[data-solo]').forEach((m) => { m.classList.toggle('is-on', m.dataset.solo === solo); m.setAttribute('aria-pressed', String(m.dataset.solo === solo)); });
+        draw();
+      });
+      new ResizeObserver(() => list && draw()).observe(wave);
+      render();
+      return { update(c) { calls = c; render(); } };
+    }
+    return { mount };
+  })();
+
+  /* ---------- Demo: the same sample calls as call-usage.html, with start times ---------- */
+  (() => {
+    let s = 20261005;
+    const rnd = () => ((s = (s * 16807) % 2147483647), (s - 1) / 2147483646);
+    const weekdays = (y, m, until) => {
+      const out = [], n = new Date(y, m + 1, 0).getDate();
+      for (let d = 1; d <= n; d++) { const t = new Date(y, m, d); if (t.getDay() % 6 && (!until || t <= until)) out.push(t); }
+      return out;
+    };
+    function make(y, m, kind, n, total, until) {
+      const pool = weekdays(y, m, until); if (!pool.length) return [];
+      const w = Array.from({ length: n }, () => 0.4 + rnd() * rnd() * 3);
+      const sum = w.reduce((a, b) => a + b, 0);
+      const out = w.map((v) => {
+        const d = new Date(pool[Math.floor(rnd() * pool.length)]);
+        d.setHours(9 + Math.floor(rnd() * 9), Math.floor(rnd() * 60));
+        return { date: d, kind, minutes: Math.round((v / sum) * total * 10) / 10 };
+      });
+      out[out.length - 1].minutes = Math.round((total - out.slice(0, -1).reduce((a, c) => a + c.minutes, 0)) * 10) / 10;
+      return out;
+    }
+    const today = new Date(); today.setHours(23, 59, 0, 0);
+    const calls = [
+      ...make(2026, 7, 'one', 19, 64.5), ...make(2026, 7, 'room', 3, 12.4),
+      ...make(2026, 8, 'one', 22, 71.8), ...make(2026, 8, 'room', 5, 21.6),
+      ...make(2026, 9, 'one', 23, 82.3), ...make(2026, 9, 'room', 4, 17.3),
+      ...make(2026, 10, 'one', 4, 14.2, today), ...make(2026, 10, 'room', 1, 3.6, today),
+    ].filter((c) => c.date <= today);
+    CallRecording.mount(document.querySelector('[data-deck]'), { calls, rate: 0.002, month: { y: 2026, m: 9 }, duration: 7000 });
+  })();
+  </script>
+</body>
+</html>

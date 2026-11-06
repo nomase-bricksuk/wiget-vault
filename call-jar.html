@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Minutes jar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* =========================================================
+       Minutes jar — every call drops into a glass jar as a ball sized by its minutes
+       ========================================================= */
+    :root {
+      --page: #eef3ec;
+      --card: #fbfaf5;
+      --ink: #1c2321;
+      --text: #46504c;
+      --dim: #77817c;
+      --line: #e3e6df;
+      --one: #3a6df0;
+      --room: #f39a1e;
+      --display: 'Bricolage Grotesque', system-ui, sans-serif;
+      --sans: 'Instrument Sans', system-ui, sans-serif;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { background: var(--page); }
+    body {
+      min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: center; gap: 16px;
+      padding: 40px 16px; color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased;
+      background: radial-gradient(900px 500px at 20% 0%, #f8f3e2, transparent 60%), radial-gradient(800px 500px at 100% 100%, #dfeee9, transparent 60%), var(--page);
+    }
+    button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+    .sr-only { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    table.sr-only { display: block; }
+    .note { width: min(100%, 780px); color: var(--dim); font-size: 12px; line-height: 1.5; }
+    .note code { font-size: 11px; }
+
+    .jarcard {
+      position: relative; width: min(100%, 780px); display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 34px; align-items: center;
+      padding: 28px 34px; border-radius: 32px; background: var(--card);
+      box-shadow: 0 1px 0 #fff inset, 0 2px 4px rgba(28, 35, 33, .04), 0 30px 60px -36px rgba(28, 35, 33, .35);
+    }
+
+    /* Jar */
+    .stage { position: relative; aspect-ratio: 36 / 40; }
+    .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; border-radius: 16px; }
+    .stage canvas:active { cursor: grabbing; }
+    .stage canvas:focus-visible { outline: 2px solid var(--one); outline-offset: 4px; }
+    .tip {
+      position: absolute; left: 0; top: 0; z-index: 2; padding: 8px 11px; border-radius: 12px; white-space: nowrap;
+      background: var(--ink); color: #fff; font-size: 12px; line-height: 1.45; pointer-events: none;
+      opacity: 0; transform: translate(-50%, calc(-100% - 12px)); transition: opacity .15s;
+    }
+    .tip.is-on { opacity: 1; }
+    .tip b { font-weight: 600; }
+    .tip small { display: block; color: #b8c0bc; font-size: 11px; }
+
+    /* Panel */
+    .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .eyebrow { color: var(--dim); font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+    .pager { display: flex; align-items: center; gap: 2px; }
+    .pager button { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; transition: background-color .2s; }
+    .pager button:hover:not(:disabled) { background: #eef0ea; }
+    .pager button:disabled { opacity: .3; cursor: default; }
+    .pager button:focus-visible, .shake:focus-visible, .key:focus-visible { outline: 2px solid var(--one); outline-offset: 2px; }
+    .pager svg { width: 16px; height: 16px; }
+    .pager p { min-width: 118px; text-align: center; font-size: 14px; font-weight: 600; }
+
+    .hl { margin-top: 18px; font: 300 52px/1 var(--display); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+    .hl small { margin-left: 6px; font-size: 20px; font-weight: 500; color: var(--dim); letter-spacing: 0; }
+    .dek { margin-top: 10px; color: var(--text); font-size: 14px; line-height: 1.5; }
+    .dek b { color: var(--ink); font-weight: 600; }
+
+    .keys { display: grid; gap: 8px; margin-top: 22px; }
+    .key {
+      display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; column-gap: 12px;
+      padding: 10px 14px 10px 10px; border-radius: 16px; background: #f3f2ec; text-align: left; transition: background-color .2s, opacity .25s;
+    }
+    .key:hover, .key.is-on { background: #ebeae2; }
+    .jarcard.is-solo .key:not(.is-on) { opacity: .45; }
+    .key__ball { width: 28px; height: 28px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--c) 45%, #fff), var(--c) 70%); }
+    .key__ball.is-room { box-shadow: inset 0 0 0 4px var(--c), inset 0 0 0 6px rgba(255,255,255,.85); }
+    .key__nm { font-size: 14px; font-weight: 500; }
+    .key__nm small { display: block; color: var(--dim); font-size: 12px; font-weight: 400; }
+    .key__v { font: 500 22px/1 var(--display); font-variant-numeric: tabular-nums; }
+    .key__v small { margin-left: 3px; font-size: 12px; color: var(--dim); font-family: var(--sans); }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .mini { padding: 12px 14px; border-radius: 16px; box-shadow: 0 0 0 1px var(--line) inset; }
+    .mini dt { color: var(--dim); font-size: 12px; }
+    .mini dd { margin-top: 3px; font: 500 21px/1.1 var(--display); font-variant-numeric: tabular-nums; }
+    .mini dd small { display: block; margin-top: 2px; color: var(--dim); font: 400 11.5px/1.3 var(--sans); }
+
+    .actions { display: flex; align-items: center; gap: 14px; margin-top: 16px; color: var(--dim); font-size: 12px; }
+    .shake { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 13px; font-weight: 500; transition: transform .2s var(--ease); }
+    .shake:hover { transform: translateY(-1px); }
+    .shake svg { width: 15px; height: 15px; }
+
+    @media (max-width: 720px) {
+      .jarcard { grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 20px 18px; border-radius: 26px; }
+      .stage { width: min(100%, 340px); justify-self: center; order: 2; }
+      .panel { display: contents; }
+      .top, .hl, .dek { order: 1; }
+      .hl { margin-top: 0; font-size: 42px; }
+      .dek { margin-top: -8px; }
+      .keys, .row, .actions { order: 3; }
+      .keys, .row, .actions { margin-top: 0; }
+      .actions { flex-wrap: wrap; }
+    }
+    @media (prefers-reduced-motion: reduce) { .tip, .key, .shake { transition: none; } }
+  </style>
+</head>
+<body>
+
+  <section class="jarcard" data-jar aria-label="Minutes jar"></section>
+  <p class="note">Each ball is one call; its area is the call’s minutes, so the jar fills by how long you talked. The jar is the same size every month, so months compare by how full it gets. Sample calls, generated for the demo. Pass your own to <code>CallJar.mount()</code>.</p>
+
+  <script>
+  /* =============================================================
+     CallJar — a month of calls dropped into a jar as balls.
+     CallJar.mount(el, {
+       calls: [{ date: Date, kind: 'one' | 'room', minutes: n }],
+       rate: 0.002, month: { y, m },
+       capacity: 160,            // minutes that would fill the jar to the brim; keeps months comparable
+     })  →  { update(calls) }
+     ============================================================= */
+  window.CallJar = (() => {
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+    const COL = { one: '#3a6df0', room: '#f39a1e' };
+    const NAME = { one: 'One-on-one', room: 'Room calls' };
+    const MONTH = (y, m) => new Date(y, m, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const mins = (v) => (Math.round(v * 10) / 10).toFixed(1).replace(/\.0$/, '');
+    const ARR = (d) => `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+    const SHAKE = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10a6 6 0 0 1 10.4-4.1M16 10a6 6 0 0 1-10.4 4.1"/><path d="M14.5 2.5v3.6h-3.6M5.5 17.5v-3.6h3.6"/></svg>';
+
+    function mount(el, cfg) {
+      const rate = cfg.rate ?? 0.002, CAP = cfg.capacity || 160;
+      let calls = cfg.calls;
+      const now = new Date();
+      let cur = cfg.month || { y: now.getFullYear(), m: now.getMonth() };
+      let balls = [], hot = -1, solo = null, raf = 0, t0 = 0, list = [], M = null;
+
+      el.innerHTML = `
+        <div class="stage"><canvas data-cv tabindex="0" role="img"></canvas><div class="tip" data-tip aria-hidden="true"></div></div>
+        <div class="panel">
+          <header class="top">
+            <p class="eyebrow">Minutes jar</p>
+            <nav class="pager" aria-label="Month">
+              <button type="button" data-step="-1" aria-label="Previous month">${ARR('M12.5 4.5 7 10l5.5 5.5')}</button>
+              <p data-month aria-live="polite"></p>
+              <button type="button" data-step="1" aria-label="Next month">${ARR('M7.5 4.5 13 10l-5.5 5.5')}</button>
+            </nav>
+          </header>
+          <p class="hl" data-hl></p>
+          <p class="dek" data-dek></p>
+          <div class="keys" data-keys></div>
+          <dl class="row" data-row></dl>
+          <div class="actions"><button class="shake" type="button" data-shake>${SHAKE}Pour again</button><span>Drag in the jar to stir</span></div>
+        </div>
+        <table class="sr-only" data-table></table>`;
+      const q = (s) => el.querySelector(s);
+      const cv = q('[data-cv]'), ctx = cv.getContext('2d');
+      let W = 0, H = 0, DPR = 1, J = null;
+
+      /* ---------- Geometry ---------- */
+      function size() {
+        const r = cv.getBoundingClientRect();
+        if (!r.width) return false;
+        const oldW = W;
+        W = r.width; H = r.height; DPR = Math.min(2, devicePixelRatio || 1);
+        cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+        // Jar body: walls, a rounded bottom and a neck at the top.
+        const jw = W * 0.74, jx = (W - jw) / 2, top = H * 0.17, bot = H * 0.95;
+        J = { L: jx, R: jx + jw, T: top, B: bot, rc: jw * 0.16, neckL: jx + jw * 0.14, neckR: jx + jw * 0.86, lip: H * 0.08 };
+        // Radius scale: balls' area at capacity ≈ 62% of the jar's area (circles pack around 60–65%).
+        const area = jw * (bot - top) - (4 - Math.PI) * J.rc * J.rc;
+        J.k = Math.sqrt((area * 0.62) / (Math.PI * CAP));
+        if (oldW && oldW !== W) { const s = W / oldW; balls.forEach((b) => { b.x *= s; b.y *= s; b.px *= s; b.py *= s; b.r = radius(b.c.minutes); }); }
+        return true;
+      }
+      const radius = (m) => Math.max(4, J.k * Math.sqrt(m));
+
+      /* ---------- Physics (Verlet, a few relaxation passes) ---------- */
+      function constrain(b) {
+        const { L, R, B, rc } = J;
+        if (b.x < L + b.r) b.x = L + b.r;
+        if (b.x > R - b.r) b.x = R - b.r;
+        if (b.y > B - b.r) b.y = B - b.r;
+        // Rounded bottom corners
+        for (const cx of [L + rc, R - rc]) {
+          const cy = B - rc;
+          const inCorner = (cx < W / 2 ? b.x < cx : b.x > cx) && b.y > cy;
+          if (!inCorner) continue;
+          const dx = b.x - cx, dy = b.y - cy, d = Math.hypot(dx, dy), max = rc - b.r;
+          if (max > 0 && d > max) { b.x = cx + (dx / d) * max; b.y = cy + (dy / d) * max; }
+        }
+      }
+      let stir = null;
+      function step() {
+        const g = 0.32 * (H / 400);
+        balls.forEach((b) => {
+          if (!b.live) return;
+          const vx = (b.x - b.px) * 0.985, vy = (b.y - b.py) * 0.985;
+          b.px = b.x; b.py = b.y;
+          b.x += vx; b.y += vy + g;
+        });
+        if (stir) balls.forEach((b) => {
+          if (!b.live) return;
+          const dx = b.x - stir.x, dy = b.y - stir.y, d = Math.hypot(dx, dy), R = 46 * (W / 360);
+          if (d < R + b.r && d > 0.01) { const f = (R + b.r - d) / (R + b.r) * 3.2; b.x += (dx / d) * f; b.y += (dy / d) * f; }
+        });
+        for (let it = 0; it < 4; it++) {
+          for (let i = 0; i < balls.length; i++) {
+            const a = balls[i]; if (!a.live) continue;
+            for (let j = i + 1; j < balls.length; j++) {
+              const b = balls[j]; if (!b.live) continue;
+              const dx = b.x - a.x, dy = b.y - a.y, min = a.r + b.r, d2 = dx * dx + dy * dy;
+              if (d2 >= min * min || d2 === 0) continue;
+              const d = Math.sqrt(d2), push = (min - d) / 2, nx = dx / d, ny = dy / d;
+              const wa = b.r * b.r / (a.r * a.r + b.r * b.r), wb = 1 - wa;   // heavier balls move less
+              a.x -= nx * push * 2 * wa; a.y -= ny * push * 2 * wa;
+              b.x += nx * push * 2 * wb; b.y += ny * push * 2 * wb;
+            }
+            constrain(a);
+          }
+        }
+      }
+
+      /* ---------- Drawing ---------- */
+      function jarPath() {
+        const { L, R, T, B, rc, neckL, neckR, lip } = J;
+        ctx.beginPath();
+        ctx.moveTo(neckL, T - lip);
+        ctx.lineTo(neckL, T - lip * 0.35);
+        ctx.quadraticCurveTo(neckL, T, L + (neckL - L) * 0.2, T + lip * 0.25);
+        ctx.quadraticCurveTo(L, T + lip * 0.45, L, T + lip);
+        ctx.lineTo(L, B - rc);
+        ctx.quadraticCurveTo(L, B, L + rc, B);
+        ctx.lineTo(R - rc, B);
+        ctx.quadraticCurveTo(R, B, R, B - rc);
+        ctx.lineTo(R, T + lip);
+        ctx.quadraticCurveTo(R, T + lip * 0.45, R - (R - neckR) * 0.2, T + lip * 0.25);
+        ctx.quadraticCurveTo(neckR, T, neckR, T - lip * 0.35);
+        ctx.lineTo(neckR, T - lip);
+      }
+      function ball(b, i) {
+        const dim = (solo && b.c.kind !== solo) || (hot >= 0 && hot !== i);
+        ctx.globalAlpha = dim ? 0.22 : 1;
+        const c = COL[b.c.kind];
+        const gr = ctx.createRadialGradient(b.x - b.r * 0.35, b.y - b.r * 0.4, b.r * 0.1, b.x, b.y, b.r);
+        gr.addColorStop(0, mix(c, '#ffffff', 0.55)); gr.addColorStop(0.7, c); gr.addColorStop(1, mix(c, '#000000', 0.18));
+        ctx.fillStyle = gr;
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+        if (b.c.kind === 'room' && b.r > 7) {               // room calls: a white ring, so kind never rests on colour alone
+          ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = Math.max(1.2, b.r * 0.12);
+          ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.62, 0, Math.PI * 2); ctx.stroke();
+        }
+        if (i === hot) { ctx.globalAlpha = 1; ctx.strokeStyle = '#1c2321'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 2.5, 0, Math.PI * 2); ctx.stroke(); }
+        ctx.globalAlpha = 1;
+      }
+      function mix(a, b, t) {
+        const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+        const x = p(a), y = p(b);
+        return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * t)).join(',')})`;
+      }
+      function draw() {
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+        const { L, R, T, B, lip } = J;
+        // Shadow under the jar
+        const sh = ctx.createRadialGradient(W / 2, B + 6, 4, W / 2, B + 6, (R - L) * 0.6);
+        sh.addColorStop(0, 'rgba(28,35,33,.16)'); sh.addColorStop(1, 'rgba(28,35,33,0)');
+        ctx.fillStyle = sh; ctx.fillRect(0, B - 10, W, 30);
+        // Glass back
+        jarPath(); ctx.fillStyle = 'rgba(222, 236, 232, .45)'; ctx.fill();
+        // Capacity marks (in minutes), drawn on the glass's right edge
+        ctx.font = `500 ${Math.max(9, W * 0.026)}px 'Instrument Sans', sans-serif`;
+        ctx.fillStyle = 'rgba(70, 80, 76, .55)'; ctx.strokeStyle = 'rgba(70, 80, 76, .25)'; ctx.lineWidth = 1;
+        [0.25, 0.5, 0.75].forEach((f) => {
+          const y = B - (B - (T + lip)) * f;
+          ctx.beginPath(); ctx.moveTo(R - 12, y); ctx.lineTo(R - 3, y); ctx.stroke();
+        });
+        // Balls
+        balls.forEach((b, i) => { if (b.live && i !== hot) ball(b, i); });
+        if (hot >= 0 && balls[hot]?.live) ball(balls[hot], hot);
+        // Glass front: outline + highlights
+        jarPath();
+        ctx.strokeStyle = 'rgba(28, 35, 33, .32)'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(L + 12, T + lip + 14); ctx.lineTo(L + 12, B - J.rc - 8); ctx.stroke();
+        ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(L + 22, T + lip + 18); ctx.lineTo(L + 22, T + lip + 60); ctx.stroke();
+        // Lid rim
+        ctx.fillStyle = '#1c2321';
+        const rr = 5, lx = J.neckL - 8, lw = J.neckR - J.neckL + 16, ly = T - lip - 10;
+        ctx.beginPath(); ctx.roundRect(lx, ly, lw, 12, rr); ctx.fill();
+      }
+
+      /* ---------- Data ---------- */
+      function month() {
+        list = calls.filter((c) => c.date.getFullYear() === cur.y && c.date.getMonth() === cur.m).sort((a, b) => a.date - b.date);
+        const one = list.filter((c) => c.kind === 'one').reduce((a, c) => a + c.minutes, 0);
+        const room = list.filter((c) => c.kind === 'room').reduce((a, c) => a + c.minutes, 0);
+        const prevD = new Date(cur.y, cur.m - 1, 1);
+        const prev = calls.filter((c) => c.date.getFullYear() === prevD.getFullYear() && c.date.getMonth() === prevD.getMonth()).reduce((a, c) => a + c.minutes, 0);
+        const longest = list.reduce((b, c) => (!b || c.minutes > b.minutes ? c : b), null);
+        return { one, room, total: one + room, count: list.length, prev, prevName: prevD.toLocaleDateString('en-US', { month: 'long' }), longest };
+      }
+      function pour(instant) {
+        cancelAnimationFrame(raf);
+        if (!size()) return;
+        let s = cur.y * 100 + cur.m + 3;
+        const rnd = () => ((s = (s * 16807) % 2147483647), (s - 1) / 2147483646);
+        balls = list.map((c, i) => {
+          const r = radius(c.minutes);
+          const x = clamp(W / 2 + (rnd() - 0.5) * Math.max(0, J.neckR - J.neckL - r * 2), J.L + r, J.R - r);
+          const y = J.T - J.lip * 0.2 + r * 0.2 - rnd() * 6;
+          return { c, r, x, y, px: x + (rnd() - 0.5) * 1.5, py: y - 2, live: false, at: i * 110 };
+        });
+        hot = -1;
+        if (instant || reduce.matches) {
+          // Settle offline, then draw once.
+          balls.forEach((b, i) => { b.live = true; b.y -= i * 2; b.py = b.y; });
+          for (let k = 0; k < 900; k++) step();
+          draw(); return;
+        }
+        t0 = performance.now();
+        loop();
+      }
+      let idle = 0;
+      function loop() {
+        const t = performance.now() - t0;
+        balls.forEach((b) => { if (!b.live && t >= b.at) b.live = true; });
+        step(); step();
+        draw();
+        // Stop the loop once everything has landed and is still (unless stirring).
+        const moving = balls.some((b) => !b.live || Math.abs(b.y - b.py) + Math.abs(b.x - b.px) > 0.05);
+        idle = moving || stir ? 0 : idle + 1;
+        if (idle < 30) raf = requestAnimationFrame(loop);
+      }
+      const wake = () => { if (idle >= 30 || !raf) { idle = 0; cancelAnimationFrame(raf); loop(); } };
+
+      function text() {
+        M = month();
+        q('[data-month]').textContent = MONTH(cur.y, cur.m);
+        const ms = calls.map((c) => c.date.getFullYear() * 12 + c.date.getMonth()), k = cur.y * 12 + cur.m;
+        q('[data-step="-1"]').disabled = !ms.length || k <= Math.min(...ms);
+        q('[data-step="1"]').disabled = k >= now.getFullYear() * 12 + now.getMonth();
+        q('[data-hl]').innerHTML = `${mins(M.total)}<small>min</small>`;
+        const diff = M.prev ? M.total - M.prev : null;
+        q('[data-dek]').innerHTML = M.count
+          ? `<b>${M.count} calls</b> in the jar this month.${diff == null ? '' : ` That’s ${mins(Math.abs(diff))} min ${diff >= 0 ? 'more' : 'less'} than ${M.prevName}.`}`
+          : 'No calls this month — the jar is empty.';
+        const n = (kd) => list.filter((c) => c.kind === kd).length;
+        q('[data-keys]').innerHTML = ['one', 'room'].map((kd) => `
+          <button class="key${solo === kd ? ' is-on' : ''}" type="button" data-k="${kd}" style="--c:${COL[kd]}" aria-pressed="${solo === kd}">
+            <span class="key__ball${kd === 'room' ? ' is-room' : ''}" aria-hidden="true"></span>
+            <span class="key__nm">${NAME[kd]}<small>${n(kd)} ${n(kd) === 1 ? 'ball' : 'balls'} · ${kd === 'one' ? 'Never limited' : 'No monthly limit'}</small></span>
+            <span class="key__v">${mins(M[kd])}<small>min</small></span>
+          </button>`).join('');
+        q('[data-row]').innerHTML = `
+          <div class="mini"><dt>Cost</dt><dd>$${(M.total * rate).toFixed(4)}<small>$${rate}/person-min · free in beta</small></dd></div>
+          <div class="mini"><dt>Biggest ball</dt><dd>${M.longest ? `${mins(M.longest.minutes)} min` : '—'}<small>${M.longest ? `${NAME[M.longest.kind].replace(' calls', ' call')}, ${M.longest.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'No calls'}</small></dd></div>`;
+        cv.setAttribute('aria-label', `Jar of ${M.count} calls in ${MONTH(cur.y, cur.m)}: ${mins(M.one)} minutes one-on-one, ${mins(M.room)} minutes in room calls. Use the arrow keys to read each call.`);
+        q('[data-table]').innerHTML = `<caption>Calls in ${MONTH(cur.y, cur.m)}</caption><thead><tr><th>Date</th><th>Kind</th><th>Minutes</th><th>Cost</th></tr></thead><tbody>${list.map((c) => `<tr><td>${c.date.toLocaleString('en-US')}</td><td>${NAME[c.kind]}</td><td>${mins(c.minutes)}</td><td>$${(c.minutes * rate).toFixed(4)}</td></tr>`).join('')}</tbody>`;
+      }
+
+      function setHot(i) {
+        hot = i;
+        const tip = q('[data-tip]');
+        if (i < 0 || !balls[i]) { tip.classList.remove('is-on'); draw(); return; }
+        const b = balls[i], c = b.c;
+        tip.innerHTML = `<b>${mins(c.minutes)} min</b> · ${NAME[c.kind].replace(' calls', ' call')}<small>${c.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · ${c.date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} · $${(c.minutes * rate).toFixed(4)}</small>`;
+        tip.style.left = `${clamp(b.x, 70, W - 70)}px`; tip.style.top = `${b.y - b.r}px`;
+        tip.classList.add('is-on');
+        draw();
+      }
+
+      /* ---------- Events ---------- */
+      const local = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+      const pick = (p) => { let best = -1, bd = 1e9; balls.forEach((b, i) => { if (!b.live) return; const d = Math.hypot(b.x - p.x, b.y - p.y); if (d < b.r + 2 && d < bd) { bd = d; best = i; } }); return best; };
+      cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); stir = local(e); setHot(-1); wake(); });
+      cv.addEventListener('pointermove', (e) => {
+        const p = local(e);
+        if (stir) { stir = p; return; }
+        const i = pick(p); if (i !== hot) setHot(i);
+      });
+      const end = () => { stir = null; };
+      cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+      cv.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && !stir) setHot(-1); });
+      cv.addEventListener('keydown', (e) => {
+        const st = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+        if (st && balls.length) { e.preventDefault(); setHot(((hot < 0 ? (st > 0 ? -1 : 0) : hot) + st + balls.length) % balls.length); }
+        else if (e.key === 'Escape') setHot(-1);
+      });
+      cv.addEventListener('blur', () => setHot(-1));
+      q('[data-shake]').addEventListener('click', () => pour(false));
+      q('.pager').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-step]'); if (!b || b.disabled) return;
+        const t = new Date(cur.y, cur.m + +b.dataset.step, 1); cur = { y: t.getFullYear(), m: t.getMonth() };
+        text(); pour(false);
+      });
+      q('[data-keys]').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-k]'); if (!b) return;
+        solo = solo === b.dataset.k ? null : b.dataset.k;
+        el.classList.toggle('is-solo', !!solo);
+        el.querySelectorAll('[data-k]').forEach((k) => { k.classList.toggle('is-on', k.dataset.k === solo); k.setAttribute('aria-pressed', String(k.dataset.k === solo)); });
+        draw();
+      });
+      new ResizeObserver(() => { if (size() && balls.length) { balls.forEach(constrain); draw(); } }).observe(cv);
+
+      text();
+      // Pour when the jar scrolls into view (or straight away if it already is).
+      const io = new IntersectionObserver((es) => { if (es[0].isIntersecting) { io.disconnect(); document.fonts?.ready.then(() => pour(false)); } }, { threshold: 0.3 });
+      io.observe(cv);
+      return { update(c) { calls = c; text(); pour(true); } };
+    }
+    return { mount };
+  })();
+
+  /* ---------- Demo: the same sample calls as call-usage.html ---------- */
+  (() => {
+    let s = 20261005;
+    const rnd = () => ((s = (s * 16807) % 2147483647), (s - 1) / 2147483646);
+    const weekdays = (y, m, until) => {
+      const out = [], n = new Date(y, m + 1, 0).getDate();
+      for (let d = 1; d <= n; d++) { const t = new Date(y, m, d); if (t.getDay() % 6 && (!until || t <= until)) out.push(t); }
+      return out;
+    };
+    function make(y, m, kind, n, total, until) {
+      const pool = weekdays(y, m, until); if (!pool.length) return [];
+      const w = Array.from({ length: n }, () => 0.4 + rnd() * rnd() * 3);
+      const sum = w.reduce((a, b) => a + b, 0);
+      const out = w.map((v) => {
+        const d = new Date(pool[Math.floor(rnd() * pool.length)]);
+        d.setHours(9 + Math.floor(rnd() * 9), Math.floor(rnd() * 60));
+        return { date: d, kind, minutes: Math.round((v / sum) * total * 10) / 10 };
+      });
+      out[out.length - 1].minutes = Math.round((total - out.slice(0, -1).reduce((a, c) => a + c.minutes, 0)) * 10) / 10;
+      return out;
+    }
+    const today = new Date(); today.setHours(23, 59, 0, 0);
+    const calls = [
+      ...make(2026, 7, 'one', 19, 64.5), ...make(2026, 7, 'room', 3, 12.4),
+      ...make(2026, 8, 'one', 22, 71.8), ...make(2026, 8, 'room', 5, 21.6),
+      ...make(2026, 9, 'one', 23, 82.3), ...make(2026, 9, 'room', 4, 17.3),
+      ...make(2026, 10, 'one', 4, 14.2, today), ...make(2026, 10, 'room', 1, 3.6, today),
+    ].filter((c) => c.date <= today);
+    CallJar.mount(document.querySelector('[data-jar]'), { calls, rate: 0.002, month: { y: 2026, m: 9 }, capacity: 160 });
+  })();
+  </script>
+</body>
+</html>

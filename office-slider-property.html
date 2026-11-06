@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Office spaces</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://images.unsplash.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300;62..125,400;62..125,500;62..125,700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* =========================================================
+       Office property slider — each slide is a listing laid out like a drawing's title block
+       ========================================================= */
+    :root {
+      --page: #e4e2dc;
+      --paper: #f6f5f1;
+      --ink: #141414;
+      --text: #3f3f3c;
+      --dim: #77766f;
+      --line: #141414;
+      --hair: rgba(20, 20, 20, .14);
+      --signal: #ff5a1f;
+      --ok: #1f7a4d;
+      --warn: #b8660a;
+      --sans: 'Archivo', system-ui, sans-serif;
+      --mono: 'IBM Plex Mono', ui-monospace, monospace;
+      --ease: cubic-bezier(.65, 0, .35, 1);
+      --out: cubic-bezier(.22, 1, .36, 1);
+      --slide: 7000ms;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { background: var(--page); }
+    body {
+      min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: center; gap: 14px;
+      padding: 40px 16px; color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased;
+      background: var(--page);
+    }
+    button, a { font: inherit; color: inherit; }
+    button { background: none; border: 0; cursor: pointer; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .note { width: min(100%, 1080px); color: var(--dim); font-size: 12px; line-height: 1.5; }
+
+    .props { position: relative; width: min(100%, 1080px); background: var(--paper); box-shadow: 0 0 0 1px var(--line), 0 30px 60px -34px rgba(20, 20, 20, .45); }
+    .props:focus-visible { outline: 2px solid var(--signal); outline-offset: 4px; }
+
+    /* Top bar, like a drawing's header strip */
+    .bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 18px; border-bottom: 1px solid var(--line); font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    .bar b { font-weight: 500; color: var(--signal); }
+    .bar__r { display: flex; align-items: center; gap: 14px; color: var(--dim); }
+    .auto { display: inline-flex; align-items: center; gap: 7px; padding: 5px 9px; border: 1px solid var(--hair); border-radius: 999px; font: inherit; color: var(--text); letter-spacing: .08em; }
+    .auto svg { width: 10px; height: 10px; }
+    .auto:focus-visible, .nav:focus-visible, .thumb:focus-visible, .cta:focus-visible, .save:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+    .body { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+
+    /* Image stage */
+    .stage { position: relative; aspect-ratio: 4 / 4.4; overflow: hidden; background: #cfccc4; border-right: 1px solid var(--line); touch-action: pan-y; cursor: grab; }
+    .stage:active { cursor: grabbing; }
+    .shot { position: absolute; inset: 0; }
+    .shot img { width: 100%; height: 100%; object-fit: cover; display: block; transform-origin: 50% 60%; }
+    .shot.is-in img { animation: drift calc(var(--slide) + 1500ms) linear both; }
+    @keyframes drift { from { transform: scale(1.08); } to { transform: scale(1); } }
+    .shot__fallback { position: absolute; inset: 0; display: grid; place-items: center; background: repeating-linear-gradient(90deg, transparent 0 39px, rgba(20,20,20,.06) 39px 40px), repeating-linear-gradient(0deg, transparent 0 39px, rgba(20,20,20,.06) 39px 40px), #d8d5cd; color: var(--dim); font: 500 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+    /* Corner crop marks */
+    .marks i { position: absolute; width: 18px; height: 18px; border-color: rgba(255,255,255,.85); border-style: solid; border-width: 0; pointer-events: none; z-index: 2; }
+    .marks i:nth-child(1) { left: 14px; top: 14px; border-left-width: 1px; border-top-width: 1px; }
+    .marks i:nth-child(2) { right: 14px; top: 14px; border-right-width: 1px; border-top-width: 1px; }
+    .marks i:nth-child(3) { left: 14px; bottom: 14px; border-left-width: 1px; border-bottom-width: 1px; }
+    .marks i:nth-child(4) { right: 14px; bottom: 14px; border-right-width: 1px; border-bottom-width: 1px; }
+    .idx { position: absolute; left: 22px; bottom: 18px; z-index: 2; color: #fff; font: 300 92px/0.8 var(--sans); font-stretch: 62%; letter-spacing: -.02em; text-shadow: 0 2px 24px rgba(0,0,0,.25); font-variant-numeric: tabular-nums; pointer-events: none; }
+    .idx small { font-size: 18px; font-stretch: 100%; letter-spacing: .02em; margin-left: 6px; opacity: .85; }
+    .credit { position: absolute; right: 18px; bottom: 16px; z-index: 2; color: rgba(255,255,255,.9); font: 400 10px var(--mono); text-decoration: none; text-shadow: 0 1px 6px rgba(0,0,0,.4); }
+    .credit:hover { text-decoration: underline; }
+    .navs { position: absolute; right: 16px; top: 16px; z-index: 2; display: flex; gap: 6px; }
+    .nav { width: 42px; height: 42px; display: grid; place-items: center; background: rgba(246, 245, 241, .92); color: var(--ink); box-shadow: 0 0 0 1px var(--line); transition: background-color .2s, color .2s; }
+    .nav:hover { background: var(--ink); color: var(--paper); }
+    .nav svg { width: 16px; height: 16px; }
+
+    /* Title block */
+    .block { display: grid; grid-template-rows: auto auto 1fr auto; min-width: 0; }
+    .tb-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+    .type { font: 500 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text); }
+    .status { display: inline-flex; align-items: center; gap: 7px; font: 500 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--c); }
+    .status i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+    .tb-title { padding: 18px 20px 18px; border-bottom: 1px solid var(--line); }
+    .name { font: 700 44px/0.95 var(--sans); font-stretch: 75%; letter-spacing: -.01em; text-transform: uppercase; }
+    .addr { display: flex; gap: 8px; margin-top: 12px; color: var(--text); font-size: 14px; line-height: 1.45; }
+    .addr svg { flex: none; width: 16px; height: 16px; margin-top: 2px; color: var(--signal); }
+    .addr span small { display: block; color: var(--dim); font: 400 11.5px/1.5 var(--mono); }
+
+    .cells { display: grid; grid-template-columns: 1fr 1fr; align-content: start; }
+    .cell { padding: 12px 20px 13px; border-bottom: 1px solid var(--hair); min-width: 0; }
+    .cell:nth-child(odd) { border-right: 1px solid var(--hair); }
+    .cell dt { font: 500 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+    .cell dd { margin-top: 7px; font: 500 22px/1.05 var(--sans); font-stretch: 85%; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cell dd small { margin-left: 4px; font: 400 12px var(--sans); font-stretch: 100%; color: var(--dim); }
+    .cell.is-wide { grid-column: 1 / -1; border-right: 0; }
+    .occ { display: flex; gap: 2px; margin-top: 10px; height: 8px; }
+    .occ i { flex: 1; background: var(--hair); }
+    .occ i.is-taken { background: var(--ink); }
+    .occ-note { margin-top: 7px; color: var(--dim); font-size: 12px; }
+    .amen { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+    .amen span { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px 5px 7px; border: 1px solid var(--hair); font-size: 12px; color: var(--text); }
+    .amen svg { width: 14px; height: 14px; }
+
+    .tb-foot { display: grid; grid-template-columns: 1fr auto; border-top: 1px solid var(--line); }
+    .cta { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; background: var(--ink); color: var(--paper); font-size: 14px; font-weight: 500; text-decoration: none; transition: background-color .2s; }
+    .cta:hover { background: var(--signal); }
+    .cta svg { width: 18px; height: 18px; transition: transform .3s var(--out); }
+    .cta:hover svg { transform: translateX(4px); }
+    .save { width: 56px; display: grid; place-items: center; border-left: 1px solid var(--line); transition: color .2s; }
+    .save svg { width: 20px; height: 20px; }
+    .save[aria-pressed="true"] { color: var(--signal); }
+    .save[aria-pressed="true"] svg path { fill: currentColor; }
+
+    /* Text reveal on change */
+    .rv { display: block; }
+    .is-changing .rv { animation: up .7s var(--out) both; animation-delay: calc(var(--d, 0) * 45ms + 120ms); }
+    @keyframes up { from { opacity: 0; transform: translateY(10px); } }
+
+    /* Thumb strip with progress */
+    .thumbs { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); border-top: 1px solid var(--line); }
+    .thumb { position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; align-items: center; padding: 10px 12px; text-align: left; border-right: 1px solid var(--hair); transition: background-color .2s; }
+    .thumb:last-child { border-right: 0; }
+    .thumb:hover { background: rgba(20,20,20,.04); }
+    .thumb img, .thumb .ph { width: 44px; height: 44px; object-fit: cover; display: block; background: #d8d5cd; filter: grayscale(1); opacity: .7; transition: filter .3s, opacity .3s; }
+    .thumb[aria-current="true"] img { filter: none; opacity: 1; }
+    .thumb b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 500 12.5px/1.2 var(--sans); }
+    .thumb small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--dim); font: 400 10.5px/1.5 var(--mono); }
+    .thumb .prog { position: absolute; left: 0; right: 0; top: -1px; height: 2px; background: var(--signal); transform: scaleX(0); transform-origin: left; }
+    .thumb[aria-current="true"] .prog { transform: scaleX(1); }
+    .props.is-playing .thumb[aria-current="true"] .prog { animation: prog var(--slide) linear both; }
+    .props.is-paused .thumb[aria-current="true"] .prog { animation-play-state: paused; }
+    @keyframes prog { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+    @media (max-width: 860px) {
+      .body { grid-template-columns: minmax(0, 1fr); }
+      .stage { aspect-ratio: 4 / 3.2; border-right: 0; border-bottom: 1px solid var(--line); }
+      .idx { font-size: 64px; }
+      .name { font-size: 36px; }
+      .thumbs { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+      .thumbs::-webkit-scrollbar { display: none; }
+      .thumb { flex: 0 0 62%; scroll-snap-align: start; }
+    }
+    @media (max-width: 480px) {
+      .idx { font-size: 52px; }
+      .credit { left: 22px; right: auto; top: 20px; bottom: auto; font-size: 9px; }
+      .navs { top: auto; bottom: 14px; }
+      .cell dd small { display: block; margin: 3px 0 0; }
+      .bar { padding: 10px 14px; }
+      .bar__l span { display: none; }
+      .tb-head, .tb-title { padding-left: 16px; padding-right: 16px; }
+      .cell { padding: 11px 16px 12px; }
+      .cell dd { font-size: 19px; }
+      .name { font-size: 30px; }
+      .navs .nav { width: 38px; height: 38px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .shot.is-in img, .is-changing .rv { animation: none; }
+      .props.is-playing .thumb[aria-current="true"] .prog { animation: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <section class="props" data-props aria-roledescription="carousel" aria-label="Office spaces" tabindex="0"></section>
+  <p class="note">Sample listings — names, addresses and figures are made up for the demo. Photos from Unsplash, credited on each slide. Pass your own listings to <code>PropertySlider.mount()</code>.</p>
+
+  <script>
+  /* =============================================================
+     PropertySlider — office listings as a slider.
+     PropertySlider.mount(el, {
+       listings: [{
+         id, name, type, status: 'available' | 'few' | 'waitlist',
+         address, ward, station: { name, walk },
+         desks, taken, area,            // area in m²; tsubo is derived
+         floors, rent, from,            // rent per desk / month (¥); from = available date (Date)
+         lease, built, storeys,         // minimum term (text), year built, building height
+         amenities: ['24/7', 'meeting', 'terrace', 'bike', 'shower', 'pets', 'parking'],
+         image: { id: 'photo-…', by: 'Name', page: 'https://unsplash.com/photos/…' },
+       }],
+       interval: 7000,                  // autoplay; 0 turns it off
+     })  →  { go(i), next(), prev() }
+     ============================================================= */
+  window.PropertySlider = (() => {
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    const yen = (v) => `¥${Math.round(v).toLocaleString('ja-JP')}`;
+    const tsubo = (m2) => m2 / 3.3058;
+    const fmtDate = (d) => (d <= new Date() ? 'Now' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+    const img = (id, w) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=72`;
+    const STATUS = {
+      available: { label: 'Available', c: 'var(--ok)' },
+      few: { label: 'Few desks left', c: 'var(--warn)' },
+      waitlist: { label: 'Waitlist', c: 'var(--signal)' },
+    };
+    const sv = (p, w = 1.6) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+    const AMEN = {
+      '24/7': ['24/7 access', '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'],
+      meeting: ['Meeting rooms', '<rect x="3" y="6" width="18" height="11" rx="1"/><path d="M8 20h8M12 17v3"/>'],
+      terrace: ['Roof terrace', '<path d="M4 20h16M6 20v-6M18 20v-6M3 14h18M12 14V5M8 8c1.5-2 6.5-2 8 0"/>'],
+      bike: ['Bike parking', '<circle cx="6" cy="16" r="3.5"/><circle cx="18" cy="16" r="3.5"/><path d="M6 16l4-7h5l3 7M10 9l2 7"/>'],
+      shower: ['Showers', '<path d="M5 20V8a4 4 0 0 1 8 0M11 8h4M13 12v1M16 12v1M14.5 15v1M17.5 15v1"/>'],
+      pets: ['Pet friendly', '<circle cx="7" cy="9" r="1.6"/><circle cx="11" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="18" cy="9" r="1.6"/><path d="M8 17c0-3 2-5 4.5-5s4.5 2 4.5 5c0 2-2 2-4.5 2S8 19 8 17z"/>'],
+      parking: ['Car parking', '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/>'],
+    };
+    const PIN = sv('<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>', 1.8);
+    const ARROW = (d) => sv(`<path d="${d}"/>`, 1.8);
+    const HEART = sv('<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>', 1.6);
+
+    function mount(el, cfg) {
+      const L = cfg.listings, N = L.length;
+      const interval = reduce.matches ? 0 : cfg.interval ?? 7000;
+      el.style.setProperty('--slide', `${interval || 7000}ms`);
+      let i = 0, timer = 0, hovering = false, focused = false, playing = !!interval, busy = false;
+      const saved = new Set();
+
+      el.innerHTML = `
+        <div class="bar">
+          <p class="bar__l"><b>●</b> Office spaces <span>· Tokyo · ${N} listings</span></p>
+          <div class="bar__r">
+            <span data-count aria-hidden="true"></span>
+            ${interval ? '<button class="auto" type="button" data-auto></button>' : ''}
+          </div>
+        </div>
+        <div class="body">
+          <div class="stage" data-stage>
+            <div class="marks" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <p class="idx" data-idx aria-hidden="true"></p>
+            <a class="credit" data-credit target="_blank" rel="noopener"></a>
+            <div class="navs">
+              <button class="nav" type="button" data-prev aria-label="Previous listing">${ARROW('M15 5l-7 7 7 7')}</button>
+              <button class="nav" type="button" data-next aria-label="Next listing">${ARROW('M9 5l7 7-7 7')}</button>
+            </div>
+          </div>
+          <div class="block" data-block aria-live="polite"></div>
+        </div>
+        <div class="thumbs" style="--n:${N}" role="tablist" aria-label="Choose a listing">${L.map((p, k) => `
+          <button class="thumb" type="button" role="tab" data-go="${k}" aria-label="${p.name}, ${p.ward}">
+            <span class="prog" aria-hidden="true"></span>
+            <img src="${img(p.image.id, 120)}" alt="" loading="lazy" onerror="this.outerHTML='<span class=&quot;ph&quot;></span>'">
+            <span><b>${p.name}</b><small>${p.ward} · ${p.desks} desks</small></span>
+          </button>`).join('')}
+        </div>`;
+      const q = (s) => el.querySelector(s);
+      const stage = q('[data-stage]');
+
+      function shot(p, k) {
+        const s = document.createElement('div');
+        s.className = 'shot';
+        s.innerHTML = `<img src="${img(p.image.id, 1400)}" srcset="${img(p.image.id, 800)} 800w, ${img(p.image.id, 1400)} 1400w, ${img(p.image.id, 2000)} 2000w"
+          sizes="(max-width: 860px) 100vw, 600px" alt="${p.image.alt || `Exterior of ${p.name}`}" ${k === 0 ? 'fetchpriority="high"' : ''}>`;
+        s.querySelector('img').addEventListener('error', () => { s.innerHTML = `<div class="shot__fallback">${p.name}</div>`; }, { once: true });
+        return s;
+      }
+      function block(p) {
+        const st = STATUS[p.status] || STATUS.available;
+        const free = p.desks - p.taken;
+        const cells = 24, taken = Math.round((p.taken / p.desks) * cells);
+        return `
+          <div class="tb-head"><span class="type rv">${p.type}</span><span class="status rv" style="--c:${st.c}"><i aria-hidden="true"></i>${st.label}</span></div>
+          <div class="tb-title">
+            <h2 class="name rv" style="--d:1">${p.name}</h2>
+            <p class="addr rv" style="--d:2">${PIN}<span>${p.address}<small>${p.station.name} Sta. · ${p.station.walk} min walk</small></span></p>
+          </div>
+          <dl class="cells">
+            <div class="cell rv" style="--d:3"><dt>Capacity</dt><dd>${p.desks}<small>desks</small></dd></div>
+            <div class="cell rv" style="--d:3"><dt>Floor area</dt><dd>${p.area.toLocaleString('en-US')}<small>m² · ${tsubo(p.area).toFixed(0)} tsubo</small></dd></div>
+            <div class="cell rv" style="--d:4"><dt>Rent</dt><dd>${yen(p.rent)}<small>/ desk / mo</small></dd></div>
+            <div class="cell rv" style="--d:4"><dt>Available</dt><dd>${fmtDate(p.from)}<small>${p.floors}</small></dd></div>
+            <div class="cell rv" style="--d:5"><dt>Lease</dt><dd>${p.lease}<small>min. term</small></dd></div>
+            <div class="cell rv" style="--d:5"><dt>Built</dt><dd>${p.built}<small>${p.storeys} storeys</small></dd></div>
+            <div class="cell is-wide rv" style="--d:5"><dt>Occupancy</dt>
+              <div class="occ" role="img" aria-label="${p.taken} of ${p.desks} desks taken">${Array.from({ length: cells }, (_, k) => `<i class="${k < taken ? 'is-taken' : ''}"></i>`).join('')}</div>
+              <p class="occ-note">${free > 0 ? `<b>${free}</b> of ${p.desks} desks free` : 'Fully let — join the waitlist'} · ${Math.round((p.taken / p.desks) * 100)}% occupied</p>
+            </div>
+            <div class="cell is-wide rv" style="--d:6"><dt>Amenities</dt><div class="amen">${p.amenities.map((a) => `<span>${sv(AMEN[a][1])}${AMEN[a][0]}</span>`).join('')}</div></div>
+          </dl>
+          <div class="tb-foot">
+            <a class="cta" href="#" data-cta>${p.status === 'waitlist' ? 'Join the waitlist' : 'Book a viewing'}${ARROW('M5 12h14M13 6l6 6-6 6')}</a>
+            <button class="save" type="button" data-save aria-pressed="${saved.has(p.id)}" aria-label="Save ${p.name}">${HEART}</button>
+          </div>`;
+      }
+
+      function render(k, dir = 1, first = false) {
+        const p = L[k];
+        // Image: new shot wipes in over the old one
+        const old = stage.querySelector('.shot:not(.is-leaving)');
+        const s = shot(p, k);
+        stage.insertBefore(s, stage.querySelector('.marks'));
+        requestAnimationFrame(() => s.classList.add('is-in'));
+        if (old && !reduce.matches) {
+          busy = true;
+          old.classList.add('is-leaving');
+          const from = dir > 0 ? 'inset(0 0 0 100%)' : 'inset(0 100% 0 0)';
+          s.animate([{ clipPath: from }, { clipPath: 'inset(0 0 0 0)' }], { duration: 900, easing: 'cubic-bezier(.65,0,.35,1)' });
+          old.animate([{ transform: 'translateX(0)' }, { transform: `translateX(${dir > 0 ? -12 : 12}%)` }], { duration: 900, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'forwards' })
+            .onfinish = () => { old.remove(); busy = false; };
+        } else if (old) old.remove();
+        // Preload neighbours
+        [k + 1, k - 1].forEach((n) => { const x = L[(n + N) % N]; const im = new Image(); im.src = img(x.image.id, 1400); });
+
+        const bl = q('[data-block]');
+        bl.classList.remove('is-changing'); void bl.offsetWidth;
+        bl.innerHTML = block(p);
+        if (!first) bl.classList.add('is-changing');
+        q('[data-idx]').innerHTML = `${String(k + 1).padStart(2, '0')}<small>/ ${String(N).padStart(2, '0')}</small>`;
+        q('[data-count]').textContent = `${String(k + 1).padStart(2, '0')} / ${String(N).padStart(2, '0')}`;
+        const cr = q('[data-credit]');
+        cr.textContent = `Photo · ${p.image.by} / Unsplash`;
+        cr.href = p.image.page;
+        el.querySelectorAll('[data-go]').forEach((t) => {
+          const on = +t.dataset.go === k;
+          t.setAttribute('aria-current', String(on)); t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1;
+          // restart the progress bar
+          const pr = t.querySelector('.prog'); pr.style.animation = 'none'; void pr.offsetWidth; pr.style.animation = '';
+          if (on && !first) t.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reduce.matches ? 'auto' : 'smooth' });
+        });
+        el.setAttribute('aria-label', `Office spaces, listing ${k + 1} of ${N}: ${p.name}`);
+      }
+
+      function go(k, dir) {
+        k = (k + N) % N;
+        if (k === i || busy) return;
+        const d = dir ?? (k > i ? 1 : -1);
+        i = k; render(i, d); schedule();
+      }
+      const next = () => go(i + 1, 1), prev = () => go(i - 1, -1);
+
+      function schedule() {
+        clearTimeout(timer);
+        const paused = hovering || focused;
+        el.classList.toggle('is-playing', playing);
+        el.classList.toggle('is-paused', playing && paused);
+        const a = q('[data-auto]');
+        if (a) {
+          a.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${playing ? '<rect x="5" y="4" width="5" height="16"/><rect x="14" y="4" width="5" height="16"/>' : '<path d="M6 4v16l14-8z"/>'}</svg>Auto`;
+          a.setAttribute('aria-label', playing ? 'Stop automatic slides' : 'Start automatic slides');
+          a.setAttribute('aria-pressed', String(playing));
+        }
+        if (!playing || paused) return;
+        timer = setTimeout(next, interval);
+      }
+
+      /* ---------- Events ---------- */
+      q('[data-next]').addEventListener('click', next);
+      q('[data-prev]').addEventListener('click', prev);
+      q('.thumbs').addEventListener('click', (e) => { const t = e.target.closest('[data-go]'); if (t) go(+t.dataset.go); });
+      q('.thumbs').addEventListener('keydown', (e) => {
+        const st = { ArrowRight: 1, ArrowLeft: -1 }[e.key]; if (!st) return;
+        e.preventDefault(); go(i + st, st); q(`[data-go="${i}"]`).focus();
+      });
+      q('[data-auto]')?.addEventListener('click', () => { playing = !playing; schedule(); });
+      el.addEventListener('keydown', (e) => {
+        if (e.target.closest('.thumbs')) return;
+        if (e.key === 'ArrowRight') { e.preventDefault(); next(); }
+        if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+      });
+      el.addEventListener('click', (e) => {
+        const s = e.target.closest('[data-save]');
+        if (s) { const id = L[i].id; saved.has(id) ? saved.delete(id) : saved.add(id); s.setAttribute('aria-pressed', String(saved.has(id))); }
+        if (e.target.closest('[data-cta]')) e.preventDefault();
+      });
+      el.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') { hovering = true; schedule(); } });
+      el.addEventListener('pointerleave', () => { hovering = false; schedule(); });
+      el.addEventListener('focusin', () => { focused = true; schedule(); });
+      el.addEventListener('focusout', (e) => { if (!el.contains(e.relatedTarget)) { focused = false; schedule(); } });
+      document.addEventListener('visibilitychange', () => { if (document.hidden) clearTimeout(timer); else schedule(); });
+      // Swipe on the photo
+      let sx = null, sy = 0;
+      stage.addEventListener('pointerdown', (e) => { if (e.target.closest('a, button')) return; sx = e.clientX; sy = e.clientY; });
+      stage.addEventListener('pointerup', (e) => {
+        if (sx == null) return;
+        const dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) (dx < 0 ? next : prev)();
+      });
+
+      render(0, 1, true);
+      schedule();
+      return { go, next, prev };
+    }
+    return { mount };
+  })();
+
+  /* ---------- Demo listings (made up) with Unsplash photos ---------- */
+  (() => {
+    const d = (y, m, day) => new Date(y, m - 1, day);
+    PropertySlider.mount(document.querySelector('[data-props]'), {
+      interval: 7000,
+      listings: [
+        {
+          id: 'tessera', lease: '6 months', built: 2019, storeys: 8, name: 'Tessera House', type: 'Private offices', status: 'available',
+          address: '3-8-21 Minami-Aoyama, Minato-ku, Tokyo 107-0062', ward: 'Minami-Aoyama', station: { name: 'Omotesandō', walk: 4 },
+          desks: 64, taken: 41, area: 820, floors: 'Floors 3–5', rent: 68000, from: d(2026, 11, 1),
+          amenities: ['24/7', 'meeting', 'terrace', 'shower'],
+          image: { id: 'photo-1483366774565-c783b9f70e2c', by: 'Kimon Maritz', page: 'https://unsplash.com/photos/worms-eye-view-photography-of-concrete-building-mQiZnKwGXW0', alt: "Worm's-eye view of a concrete building" },
+        },
+        {
+          id: 'shirokane', lease: '3 months', built: 2008, storeys: 4, name: 'Shirokane Atelier', type: 'Studio', status: 'few',
+          address: '1-14-6 Shirokane, Minato-ku, Tokyo 108-0072', ward: 'Shirokane', station: { name: 'Shirokane-Takanawa', walk: 6 },
+          desks: 22, taken: 19, area: 240, floors: 'Floor 2', rent: 54000, from: d(2026, 12, 1),
+          amenities: ['meeting', 'bike', 'pets'],
+          image: { id: 'photo-1611816055460-618287c870bd', by: 'İltun Huseynli', page: 'https://unsplash.com/photos/white-concrete-building-during-daytime-rfklsTwIYBM', alt: 'White concrete building in daylight' },
+        },
+        {
+          id: 'arc9', lease: '2 years', built: 2021, storeys: 14, name: 'Arc 9 Nihonbashi', type: 'Full floor', status: 'available',
+          address: '2-9-3 Nihonbashi-Muromachi, Chūō-ku, Tokyo 103-0022', ward: 'Nihonbashi', station: { name: 'Mitsukoshimae', walk: 2 },
+          desks: 120, taken: 36, area: 1460, floors: 'Floor 9 (whole)', rent: 61000, from: d(2026, 11, 1),
+          amenities: ['24/7', 'meeting', 'shower', 'parking'],
+          image: { id: 'photo-1567943183748-3a7542120c90', by: 'Sam Balye', page: 'https://unsplash.com/photos/a-curved-building-with-a-sky-background-t0nojyPGbok', alt: 'A curved building against the sky' },
+        },
+        {
+          id: 'lumen', lease: '1 year', built: 2016, storeys: 9, name: 'Lumen Works', type: 'Private offices', status: 'waitlist',
+          address: '4-1-12 Higashi-Shinagawa, Shinagawa-ku, Tokyo 140-0002', ward: 'Shinagawa', station: { name: 'Tennōzu Isle', walk: 5 },
+          desks: 48, taken: 48, area: 610, floors: 'Floors 6–7', rent: 59000, from: d(2027, 2, 1),
+          amenities: ['24/7', 'terrace', 'bike', 'shower'],
+          image: { id: 'photo-1788418485510-f11631855097', by: 'Mike Hindle', page: 'https://unsplash.com/photos/curved-building-facade-with-metal-discs-4M74jrq1pw4', alt: 'Curved facade covered in reflective metal discs' },
+        },
+        {
+          id: 'koen', lease: '1 month', built: 2012, storeys: 32, name: 'Kōen Tower', type: 'Serviced suites', status: 'available',
+          address: '6-5-1 Nishi-Shinjuku, Shinjuku-ku, Tokyo 160-0023', ward: 'Nishi-Shinjuku', station: { name: 'Tochōmae', walk: 3 },
+          desks: 200, taken: 132, area: 2350, floors: 'Floors 21–24', rent: 72000, from: d(2026, 11, 15),
+          amenities: ['24/7', 'meeting', 'shower', 'parking'],
+          image: { id: 'photo-1560419450-a53fe3b90211', by: 'Adrian Cuj', page: 'https://unsplash.com/photos/brown-high-rise-building-o_9YmCY0bag', alt: 'Brown high-rise building' },
+        },
+        {
+          id: 'kura', lease: '3 months', built: 1974, storeys: 3, name: 'Kura Block', type: 'Studio', status: 'few',
+          address: '2-3-18 Kuramae, Taitō-ku, Tokyo 111-0051', ward: 'Kuramae', station: { name: 'Kuramae', walk: 3 },
+          desks: 30, taken: 26, area: 310, floors: 'Floors 1–2', rent: 46000, from: d(2026, 11, 1),
+          amenities: ['meeting', 'bike', 'pets', 'terrace'],
+          image: { id: 'photo-1546414701-81cc6963c67f', by: 'Simone Hutsch', page: 'https://unsplash.com/photos/landscape-photography-of-gray-concrete-building-XK0faa4_mCQ', alt: 'Grey concrete building' },
+        },
+      ],
+    });
+  })();
+  </script>
+</body>
+</html>

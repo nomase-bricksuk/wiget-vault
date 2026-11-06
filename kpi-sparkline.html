@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KPI sparkline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@200;300;400;500&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* =========================================================
+       KPI sparkline — a ticker board: a dark card, monospaced figures, one glowing line
+       ========================================================= */
+    :root {
+      --page: #e8e6e0;
+      --card: #151514;
+      --card-2: #1d1d1b;
+      --text: #efede7;
+      --dim: #9a978f;
+      --faint: #6a6862;
+      --rule: rgba(239, 237, 231, .09);
+      --rule-2: rgba(239, 237, 231, .16);
+      --up: #8fe3b5;
+      --down: #ff8b7a;
+      --accent: #f6c343;
+      --mono: 'JetBrains Mono', ui-monospace, monospace;
+      --sans: 'Inter Tight', system-ui, sans-serif;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: center; gap: 22px;
+      padding: 40px 16px; background: var(--page); color: var(--text); font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .note { width: min(100%, 620px); color: #6f6c65; font-size: 12px; line-height: 1.5; }
+    .note code { font-family: var(--mono); font-size: 11px; }
+
+    .kpi {
+      width: min(100%, 620px); overflow: hidden;
+      border-radius: 20px; background: var(--card);
+      box-shadow: 0 1px 0 rgba(255,255,255,.05) inset, 0 30px 60px -30px rgba(20, 18, 12, .55), 0 2px 6px rgba(20,18,12,.12);
+    }
+
+    /* Header strip */
+    .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 24px 0; }
+    .tag { display: flex; align-items: center; gap: 10px; font: 500 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+    .tag b { color: var(--text); font-weight: 500; }
+    .live { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 0 var(--accent); animation: live 2.4s infinite; }
+    @keyframes live { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); } 70%, 100% { box-shadow: 0 0 0 8px transparent; } }
+    .seg { display: flex; padding: 3px; border-radius: 10px; background: var(--card-2); box-shadow: 0 0 0 1px var(--rule) inset; }
+    .seg button { padding: 6px 11px; border-radius: 7px; font: 500 11px/1 var(--mono); color: var(--dim); transition: color .2s, background-color .2s; }
+    .seg button[aria-checked="true"] { background: var(--text); color: var(--card); }
+    .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+    /* Figure + ledger */
+    .body { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 24px; padding: 20px 24px 6px; align-items: end; }
+    .lbl { color: var(--dim); font-size: 13px; }
+    .big { margin-top: 6px; font: 200 58px/1 var(--mono); letter-spacing: -.045em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; font: 400 12px/1.2 var(--mono); color: var(--dim); }
+    .chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 6px; font-weight: 500; color: var(--card); background: var(--up); }
+    .chip.is-down { background: var(--down); }
+    .chip svg { width: 10px; height: 10px; }
+    .row b { color: var(--text); font-weight: 400; }
+
+    .ledger { display: grid; gap: 9px; font: 400 11.5px/1 var(--mono); font-variant-numeric: tabular-nums; }
+    .ledger div { display: flex; align-items: baseline; gap: 6px; color: var(--dim); }
+    .ledger div::after { content: ''; order: 1; flex: 1; border-bottom: 1px dotted var(--rule-2); transform: translateY(-3px); }
+    .ledger dt { order: 0; letter-spacing: .06em; text-transform: uppercase; font-size: 10px; }
+    .ledger dd { order: 2; color: var(--text); }
+    .ledger small { order: 3; color: var(--faint); font-size: 10px; }
+
+    /* Chart — bleeds to the card edges */
+    .chart { position: relative; height: 170px; margin-top: 10px; }
+    .chart svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .grid line { stroke: var(--rule); stroke-dasharray: 2 4; }
+    .ylab { fill: var(--faint); font: 400 9.5px var(--mono); }
+    .prev { fill: none; stroke: var(--rule-2); stroke-width: 1.4; stroke-dasharray: 3 4; }
+    .line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+    .glow { fill: none; stroke: var(--accent); stroke-width: 8; opacity: .18; filter: blur(5px); }
+    .end { fill: var(--accent); }
+    .end-ring { fill: none; stroke: var(--accent); stroke-width: 1; opacity: .5; transform-box: fill-box; transform-origin: center; animation: ring 2.4s var(--ease) infinite; }
+    @keyframes ring { from { transform: scale(.6); opacity: .6; } to { transform: scale(2.2); opacity: 0; } }
+    .cross { stroke: var(--text); stroke-width: 1; opacity: 0; }
+    .pt { fill: var(--card); stroke: var(--accent); stroke-width: 2; opacity: 0; }
+    .kpi.is-scrub .cross { opacity: .35; }
+    .kpi.is-scrub .pt { opacity: 1; }
+    .kpi.is-scrub .end, .kpi.is-scrub .end-ring { opacity: .2; }
+    .hit { position: absolute; inset: 0; cursor: crosshair; }
+    .hit:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
+
+    /* Footer axis */
+    .axis { display: flex; justify-content: space-between; gap: 12px; padding: 10px 24px 18px; border-top: 1px solid var(--rule); font: 400 10.5px/1 var(--mono); color: var(--faint); }
+    .axis .key { display: flex; gap: 14px; }
+    .axis .key span { display: inline-flex; align-items: center; gap: 6px; }
+    .axis .key i { width: 14px; height: 0; border-top: 2px solid var(--accent); }
+    .axis .key i.is-prev { border-top: 1.5px dashed var(--rule-2); }
+
+    @media (max-width: 560px) {
+      .top { padding: 16px 18px 0; flex-wrap: wrap; }
+      .body { grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 16px 18px 4px; }
+      .big { font-size: 44px; }
+      .ledger { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+      .ledger small { display: none; }
+      .chart { height: 140px; }
+      .axis { padding: 10px 18px 16px; flex-wrap: wrap; }
+    }
+    @media (prefers-reduced-motion: reduce) { .live, .end-ring { animation: none; } .seg button { transition: none; } }
+  </style>
+</head>
+<body>
+
+  <article class="kpi" data-kpi="visitors"></article>
+  <article class="kpi" data-kpi="revenue" data-accent="#b9a7ff"></article>
+
+  <p class="note">Sample data, generated for the demo. Pass your own series to <code>KPISpark.mount()</code>.</p>
+
+  <script>
+  /* =============================================================
+     KPISpark — a reusable big-number + sparkline card.
+     KPISpark.mount(el, {
+       label: 'Visitors', noun: 'visitors', context: 'Website',
+       format: (v) => string,              // full figure
+       short:  (v) => string,              // optional compact figure for the axis
+       series: [{ date: Date, value: n }],  // oldest → newest, one per day (at least 2 × the longest range)
+       ranges: [7, 30, 90], range: 30,
+     })  →  { update(series) }
+     ============================================================= */
+  window.KPISpark = (() => {
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+    const day = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const dShort = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const ARROW = { up: '<path d="M3 9 9 3M4 3h5v5"/>', down: '<path d="M3 3l6 6M9 4v5H4"/>' };
+    const arrow = (k) => `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ARROW[k]}</svg>`;
+    const compact = (v) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${Math.round(v / 100) / 10}k` : String(Math.round(v)));
+
+    function smooth(pts) {
+      if (pts.length < 2) return '';
+      const n = pts.length, dx = [], m = [], t = [];
+      for (let i = 0; i < n - 1; i++) { dx[i] = pts[i + 1][0] - pts[i][0]; m[i] = (pts[i + 1][1] - pts[i][1]) / dx[i]; }
+      t[0] = m[0]; t[n - 1] = m[n - 2];
+      for (let i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
+      for (let i = 0; i < n - 1; i++) {
+        if (m[i] === 0) { t[i] = t[i + 1] = 0; continue; }
+        const a = t[i] / m[i], b = t[i + 1] / m[i], s = a * a + b * b;
+        if (s > 9) { const k = 3 / Math.sqrt(s); t[i] = k * a * m[i]; t[i + 1] = k * b * m[i]; }
+      }
+      let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+      for (let i = 0; i < n - 1; i++) {
+        const h = dx[i] / 3;
+        d += ` C${(pts[i][0] + h).toFixed(1)} ${(pts[i][1] + h * t[i]).toFixed(1)} ${(pts[i + 1][0] - h).toFixed(1)} ${(pts[i + 1][1] - h * t[i + 1]).toFixed(1)} ${pts[i + 1][0].toFixed(1)} ${pts[i + 1][1].toFixed(1)}`;
+      }
+      return d;
+    }
+
+    // Counts the figure up/down to its new value (digits stay put — the font is monospaced).
+    function tween(node, from, to, fmt) {
+      if (reduce.matches || from === to) { node.textContent = fmt(to); return; }
+      const t0 = performance.now();
+      cancelAnimationFrame(node._raf);
+      (function step(t) {
+        const p = clamp((t - t0) / 650, 0, 1), e = 1 - Math.pow(1 - p, 3);
+        node.textContent = fmt(from + (to - from) * e);
+        if (p < 1) node._raf = requestAnimationFrame(step);
+      })(t0);
+    }
+
+    let uid = 0;
+    function mount(el, cfg) {
+      const id = ++uid;
+      const ranges = cfg.ranges || [7, 30, 90];
+      let range = cfg.range || ranges[1] || ranges[0];
+      if (el.dataset.accent) el.style.setProperty('--accent', el.dataset.accent);
+      const fmt = cfg.format || ((v) => Math.round(v).toLocaleString('en-US'));
+      const short = cfg.short || compact;
+      el.innerHTML = `
+        <header class="top">
+          <p class="tag"><span class="live" aria-hidden="true"></span><b>${cfg.label}</b> · ${cfg.context}</p>
+          <div class="seg" role="radiogroup" aria-label="Range">${ranges.map((r) => `<button type="button" role="radio" data-r="${r}" aria-checked="false">${r}D</button>`).join('')}</div>
+        </header>
+        <div class="body">
+          <div aria-live="polite">
+            <p class="lbl" data-lbl></p>
+            <p class="big" data-big></p>
+            <p class="row" data-row></p>
+          </div>
+          <dl class="ledger" data-ledger></dl>
+        </div>
+        <div class="chart">
+          <svg data-svg aria-hidden="true"></svg>
+          <div class="hit" data-hit tabindex="0" role="slider" aria-label="Day"></div>
+        </div>
+        <footer class="axis"><span data-from></span><span class="key" aria-hidden="true"><span><i></i>This period</span><span><i class="is-prev"></i>Previous</span></span><span data-to></span></footer>
+        <table class="sr-only" data-table></table>`;
+      const q = (s) => el.querySelector(s);
+      let hot = -1, drawn = false, cur = [], prev = [], shown = 0;
+
+      const slice = () => { cur = cfg.series.slice(-range); prev = cfg.series.slice(-range * 2, -range); };
+      const total = (a) => a.reduce((x, p) => x + p.value, 0);
+      function stats() {
+        const t = total(cur), tp = total(prev);
+        const peak = cur.reduce((a, b) => (b.value > a.value ? b : a));
+        const low = cur.reduce((a, b) => (b.value < a.value ? b : a));
+        return { t, tp, d: tp ? (t - tp) / tp : null, avg: t / cur.length, peak, low, last: cur[cur.length - 1] };
+      }
+      const setBig = (v) => { tween(q('[data-big]'), shown, v, fmt); shown = v; };
+
+      function renderText() {
+        const s = stats();
+        const pct = s.d == null ? null : (Math.abs(s.d) * 100).toFixed(1);
+        const up = s.d == null || s.d >= 0;
+        if (hot < 0) {
+          q('[data-lbl]').textContent = `${cfg.label}, last ${range} days`;
+          setBig(s.t);
+          q('[data-row]').innerHTML = `${s.d == null ? '' : `<span class="chip${up ? '' : ' is-down'}">${arrow(up ? 'up' : 'down')}${up ? '+' : '−'}${pct}%</span>`}<span>vs <b>${fmt(s.tp)}</b> previous</span>`;
+        }
+        q('[data-ledger]').innerHTML = [
+          ['Peak', fmt(s.peak.value), dShort(s.peak.date)],
+          ['Low', fmt(s.low.value), dShort(s.low.date)],
+          ['Avg/day', fmt(s.avg), ''],
+          ['Latest', fmt(s.last.value), dShort(s.last.date)],
+        ].map(([k, v, d]) => `<div><dt>${k}</dt><dd>${v}</dd>${d ? `<small>${d}</small>` : ''}</div>`).join('');
+        q('[data-from]').textContent = dShort(cur[0].date);
+        q('[data-to]').textContent = dShort(s.last.date);
+        q('.seg').querySelectorAll('[data-r]').forEach((b) => { const on = +b.dataset.r === range; b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
+        q('[data-table]').innerHTML = `<caption>${cfg.label}, last ${range} days</caption><thead><tr><th>Day</th><th>${cfg.label}</th></tr></thead><tbody>${cur.map((p) => `<tr><td>${day(p.date)}</td><td>${fmt(p.value)}</td></tr>`).join('')}</tbody>`;
+        el.setAttribute('aria-label', `${cfg.label}: ${fmt(s.t)} over the last ${range} days${s.d == null ? '' : `, ${up ? 'up' : 'down'} ${pct}% on the previous ${range} days`}`);
+      }
+
+      let G = null;
+      function draw() {
+        const box = q('.chart'), W = box.clientWidth, H = box.clientHeight;
+        if (!W) return;
+        const padL = W < 420 ? 18 : 24, padR = W < 420 ? 44 : 52, top = 16, bot = H - 6;
+        const hi = Math.max(...cur.map((p) => p.value), ...prev.map((p) => p.value));
+        const step = Math.pow(10, Math.floor(Math.log10(hi / 2)));
+        const tickStep = [1, 2, 2.5, 5, 10].map((k) => k * step).find((v) => hi / v <= 3.2);
+        const max = Math.ceil((hi * 1.04) / tickStep) * tickStep;
+        const x = (i) => padL + (i / (cur.length - 1)) * (W - padL - padR);
+        const y = (v) => bot - (v / max) * (bot - top);
+        const pts = cur.map((p, i) => [x(i), y(p.value)]);
+        const ptsPrev = prev.map((p, i) => [x(i), y(p.value)]);
+        const line = smooth(pts);
+        const area = `${line} L${pts[pts.length - 1][0]} ${H} L${pts[0][0]} ${H} Z`;
+        const end = pts[pts.length - 1];
+        const ticks = []; for (let v = tickStep; v <= max; v += tickStep) ticks.push(v);
+        q('[data-svg]').innerHTML = `
+          <defs><linearGradient id="k${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".22"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+          <g class="grid">${ticks.map((v) => `<line x1="0" x2="${W - padR + 8}" y1="${y(v)}" y2="${y(v)}"/>`).join('')}</g>
+          ${ticks.map((v) => `<text class="ylab" x="${W - padR + 14}" y="${y(v) + 3}">${short(v)}</text>`).join('')}
+          <path class="prev" d="${smooth(ptsPrev)}"/>
+          <path d="${area}" fill="url(#k${id})" data-fade/>
+          <path class="glow" d="${line}"/>
+          <path class="line" d="${line}" data-draw/>
+          <circle class="end-ring" cx="${end[0]}" cy="${end[1]}" r="6"/>
+          <circle class="end" cx="${end[0]}" cy="${end[1]}" r="4"/>
+          <line class="cross" data-cross x1="0" x2="0" y1="0" y2="${H}"/>
+          <circle class="pt" data-pt r="5"/>`;
+        G = { pts, padL, padR, W };
+        if (!drawn && !reduce.matches) {
+          const p = q('[data-draw]'), L = p.getTotalLength();
+          p.style.strokeDasharray = L;
+          p.animate([{ strokeDashoffset: L }, { strokeDashoffset: 0 }], { duration: 1200, easing: 'cubic-bezier(.65,0,.35,1)', fill: 'backwards' }).onfinish = () => { p.style.strokeDasharray = ''; };
+          q('.glow').animate([{ opacity: 0 }, { opacity: .18 }], { duration: 700, delay: 900, fill: 'backwards' });
+          q('[data-fade]').animate([{ opacity: 0 }, { opacity: 1 }], { duration: 800, delay: 600, fill: 'backwards' });
+        }
+        drawn = true;
+        if (hot >= 0) scrub(hot, true);
+      }
+
+      function scrub(i, force) {
+        if (i === hot && !force) return;
+        hot = i;
+        el.classList.toggle('is-scrub', i >= 0);
+        const hit = q('[data-hit]');
+        hit.setAttribute('aria-valuemin', 1); hit.setAttribute('aria-valuemax', cur.length);
+        if (i < 0) { renderText(); hit.setAttribute('aria-valuetext', 'Use the arrow keys to read each day'); return; }
+        const p = cur[i], [px, py] = G.pts[i], pv = prev[i];
+        const svg = q('[data-svg]');
+        svg.querySelector('[data-cross]').setAttribute('x1', px); svg.querySelector('[data-cross]').setAttribute('x2', px);
+        svg.querySelector('[data-pt]').setAttribute('cx', px); svg.querySelector('[data-pt]').setAttribute('cy', py);
+        q('[data-lbl]').textContent = day(p.date);
+        q('[data-big]').textContent = fmt(p.value); shown = p.value;
+        cancelAnimationFrame(q('[data-big]')._raf);
+        const d = pv && pv.value ? (p.value - pv.value) / pv.value : null;
+        q('[data-row]').innerHTML = d == null ? '' : `<span class="chip${d >= 0 ? '' : ' is-down'}">${arrow(d >= 0 ? 'up' : 'down')}${d >= 0 ? '+' : '−'}${(Math.abs(d) * 100).toFixed(1)}%</span><span>vs <b>${fmt(pv.value)}</b> same day last period</span>`;
+        hit.setAttribute('aria-valuenow', i + 1);
+        hit.setAttribute('aria-valuetext', `${day(p.date)}: ${fmt(p.value)} ${cfg.noun}`);
+      }
+      const at = (cx) => {
+        const r = q('.chart').getBoundingClientRect();
+        return clamp(Math.round(((cx - r.left - G.padL) / (G.W - G.padL - G.padR)) * (cur.length - 1)), 0, cur.length - 1);
+      };
+      const hit = q('[data-hit]');
+      hit.addEventListener('pointermove', (e) => G && scrub(at(e.clientX)));
+      hit.addEventListener('pointerdown', (e) => G && scrub(at(e.clientX)));
+      hit.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') scrub(-1); });
+      hit.addEventListener('keydown', (e) => {
+        const st = { ArrowLeft: -1, ArrowRight: 1, Home: -999, End: 999 }[e.key];
+        if (st) { e.preventDefault(); scrub(clamp((hot < 0 ? cur.length - 1 : hot) + st, 0, cur.length - 1)); }
+        else if (e.key === 'Escape') scrub(-1);
+      });
+      hit.addEventListener('blur', () => scrub(-1));
+      const seg = q('.seg');
+      seg.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-r]');
+        if (!b || +b.dataset.r === range) return;
+        range = +b.dataset.r; drawn = false; hot = -1;
+        slice(); renderText(); draw();
+      });
+      seg.addEventListener('keydown', (e) => {
+        const st = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+        if (!st) return;
+        e.preventDefault();
+        const i = ranges.indexOf(range), n = ranges[(i + st + ranges.length) % ranges.length];
+        q(`[data-r="${n}"]`).click(); q(`[data-r="${n}"]`).focus();
+      });
+      new ResizeObserver(draw).observe(q('.chart'));
+      slice(); renderText();
+      document.fonts?.ready.then(draw);
+      return { update(series) { cfg.series = series; slice(); renderText(); draw(); } };
+    }
+    return { mount };
+  })();
+
+  /* ---------- Demo: two sample series ---------- */
+  (() => {
+    function series(days, base, seasonal, trend, seed) {
+      let s = seed;
+      const rnd = () => ((s = (s * 16807) % 2147483647), (s - 1) / 2147483646);
+      const out = [], today = new Date(); today.setHours(0, 0, 0, 0);
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(today); d.setDate(today.getDate() - i);
+        const wk = d.getDay() === 0 || d.getDay() === 6 ? 1 - seasonal : 1 + seasonal * 0.4;
+        out.push({ date: d, value: Math.max(0, base * wk * (1 + trend * (days - i) / days) * (0.85 + rnd() * 0.3)) });
+      }
+      return out;
+    }
+    KPISpark.mount(document.querySelector('[data-kpi="visitors"]'), {
+      label: 'Visitors', noun: 'visitors', context: 'Website',
+      series: series(180, 1180, 0.32, 0.25, 41), ranges: [7, 30, 90], range: 30,
+    });
+    KPISpark.mount(document.querySelector('[data-kpi="revenue"]'), {
+      label: 'Sales', noun: 'in sales', context: 'Shop',
+      format: (v) => `¥${Math.round(v).toLocaleString('ja-JP')}`,
+      short: (v) => `¥${Math.round(v / 1000)}k`,
+      series: series(180, 84000, 0.2, 0.12, 97), ranges: [7, 30, 90], range: 30,
+    });
+  })();
+  </script>
+</body>
+</html>

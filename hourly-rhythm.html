@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hourly rhythm</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@200;300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* =========================================================
+       Hourly rhythm — a night-sky dial: the working day glows on a 24-hour face
+       ========================================================= */
+    :root {
+      --page: #0b0e1c;
+      --card: #121733;
+      --card-2: #181e40;
+      --text: #eef0fa;
+      --dim: #9aa1c4;
+      --faint: #646b92;
+      --rule: rgba(238, 240, 250, .08);
+      --rule-2: rgba(238, 240, 250, .16);
+      --amber: #f5b944;
+      --sans: 'Sora', system-ui, sans-serif;
+      --mono: 'IBM Plex Mono', ui-monospace, monospace;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+    }
+    html { background: var(--page); }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: center; gap: 18px;
+      padding: 40px 16px;
+      background: radial-gradient(1200px 600px at 50% -10%, #1d2452 0%, var(--page) 60%) var(--page);
+      color: var(--text); font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    }
+    button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .note { width: min(100%, 720px); color: var(--faint); font-size: 11.5px; line-height: 1.55; }
+
+    .rhythm {
+      width: min(100%, 720px); padding: 24px 26px 26px; border-radius: 28px;
+      background: linear-gradient(160deg, var(--card-2), var(--card) 55%);
+      box-shadow: 0 0 0 1px var(--rule) inset, 0 40px 80px -40px rgba(0, 0, 0, .8);
+    }
+    .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .eyebrow { font: 500 10.5px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
+    .eyebrow b { color: var(--amber); font-weight: 500; }
+    .seg { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(0, 0, 0, .25); box-shadow: 0 0 0 1px var(--rule) inset; }
+    .seg button { padding: 6px 12px; border-radius: 999px; font: 500 11px/1 var(--mono); color: var(--dim); transition: background-color .2s, color .2s; }
+    .seg button[aria-checked="true"] { background: var(--text); color: var(--card); }
+    .seg button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 26px; align-items: center; margin-top: 10px; }
+
+    /* Dial */
+    .dial { position: relative; }
+    .dial svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: none; }
+    .dial svg:focus-visible { outline: none; }
+    .dial svg:focus-visible .face { stroke: var(--amber); }
+    .face { stroke: var(--rule-2); stroke-width: 1; }
+    .guide { fill: none; stroke: var(--rule); }
+    .seg-p { transition: opacity .3s var(--ease); }
+    .rhythm.is-hover .seg-p:not(.is-hot) { opacity: .16; }
+    .hlab { fill: var(--faint); font: 400 10px var(--mono); }
+    .hlab.is-major { fill: var(--dim); }
+    .office { fill: none; stroke: var(--amber); stroke-width: 1.5; stroke-dasharray: 1 5; stroke-linecap: round; }
+    .olab { fill: var(--amber); font: 500 8.5px var(--mono); letter-spacing: .2em; }
+    .glyph { fill: none; stroke: var(--dim); stroke-width: 1.3; stroke-linecap: round; }
+    .now-hand { stroke: var(--text); stroke-width: 1; opacity: .5; }
+    .now { fill: var(--text); }
+    .hot-wedge { fill: rgba(238, 240, 250, .06); stroke: var(--rule-2); opacity: 0; transition: opacity .2s; pointer-events: none; }
+    .rhythm.is-hour .hot-wedge { opacity: 1; }
+
+    .center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 36%; text-align: center; pointer-events: none; }
+    .center__k { font: 500 9.5px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--faint); }
+    .center__big { margin-top: 6px; font: 200 38px/1 var(--sans); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+    .center__sub { margin-top: 6px; color: var(--dim); font-size: 11px; line-height: 1.4; }
+    .center__sub b { color: var(--text); font-weight: 400; }
+
+    /* Side panel */
+    .hl { font: 300 23px/1.25 var(--sans); letter-spacing: -.015em; }
+    .hl em { font-style: normal; color: var(--c, var(--amber)); }
+    .dek { margin-top: 8px; color: var(--dim); font-size: 12px; line-height: 1.5; }
+    .dek b { color: var(--text); font-weight: 400; }
+    .legend { display: grid; gap: 4px; margin-top: 18px; }
+    .lg { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 10px; row-gap: 6px; align-items: center;
+      padding: 9px 10px; margin: 0 -10px; border-radius: 12px; text-align: left; transition: background-color .2s, opacity .3s; }
+    .lg:hover, .lg:focus-visible, .lg.is-hot { background: rgba(238, 240, 250, .05); }
+    .lg:focus-visible { outline: 1px solid var(--rule-2); }
+    .rhythm.is-status .lg:not(.is-hot) { opacity: .45; }
+    .lg__sw { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+    .lg__sw.is-hatch { background: repeating-linear-gradient(45deg, var(--c) 0 2px, transparent 2px 4px); box-shadow: 0 0 0 1px var(--c) inset; }
+    .lg__nm { font-size: 13px; }
+    .lg__v { font: 400 11px/1 var(--mono); color: var(--dim); font-variant-numeric: tabular-nums; }
+    .strip { grid-column: 2 / 4; display: grid; grid-template-columns: repeat(24, 1fr); gap: 1.5px; align-items: end; height: 18px; }
+    .strip i { display: block; height: max(1.5px, var(--h)); border-radius: 1px; background: var(--c); opacity: .35; }
+    .strip i.is-peak { opacity: 1; }
+    .strip-axis { grid-column: 2 / 4; display: flex; justify-content: space-between; margin-top: -3px; font: 400 8.5px/1 var(--mono); color: var(--faint); }
+
+    @media (max-width: 640px) {
+      .rhythm { padding: 18px 16px 20px; border-radius: 22px; }
+      .top { flex-wrap: wrap; }
+      .layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+      .panel { display: contents; }
+      .hl, .dek { order: -1; }
+      .hl { margin-top: 6px; font-size: 21px; }
+      .dek { margin-top: -10px; }
+      .center__big { font-size: 30px; }
+      .legend { margin-top: 0; }
+      .lg { margin: 0 -8px; padding: 8px; }
+      .strip-axis { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) { .seg-p, .hot-wedge, .lg { transition: none; } }
+  </style>
+</head>
+<body data-seed>
+
+  <article class="rhythm" data-rhythm aria-label="Hourly rhythm"></article>
+  <p class="note" data-note></p>
+
+  <script>
+  (() => {
+  /* =========================================================
+     Office-hours data — shared by the office-hours chart widgets.
+     Today comes live from office-hours-type.html / office-hours-tape.html;
+     each day's totals are kept in office-hours-chart:days; untracked past
+     days fall back to repeatable sample hours (data-seed on <body>).
+     ========================================================= */
+  const OH = (() => {
+    const HIST_KEY = 'office-hours-chart:days';
+    const SOURCES = ['office-hours-type:state', 'office-hours:state'];
+    const SEED = document.body.hasAttribute('data-seed');
+    const pad = (n) => String(n).padStart(2, '0');
+    const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+    const read = (k, fb) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? fb; } catch { return fb; } };
+    const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+    const STATUS = {
+      active: { name: 'Active', dot: '#c48a12', tint: ['#fcefc6', '#f1cf7a', '#2e2107', '#a86c08'], soft: ['#fbe6a8', '#fdf3d6'] },
+      focus: { name: 'Focus', dot: '#2f557e', tint: ['#e6eaee', '#b3c0cd', '#121a22', '#2f557e'], soft: ['#c9d6e4', '#e9eef4'] },
+      meeting: { name: 'Meeting', dot: '#b4531f', tint: ['#f8e1d2', '#e5a985', '#331607', '#a6491a'], soft: ['#f3c9ad', '#fae9dd'] },
+      away: { name: 'Away', dot: '#77736a', tint: ['#ecebe6', '#c9c6be', '#26251f', '#6f6b62'], soft: ['#dcd9d2', '#efede8'] },
+    };
+    const MEASURES = [
+      { id: 'online', name: 'Online', of: (d) => d.active + d.focus + d.meeting, goal: 8, tint: STATUS.active.tint },
+      { id: 'focus', name: 'Focus', of: (d) => d.focus, goal: 3, tint: STATUS.focus.tint },
+      { id: 'meeting', name: 'Meetings', of: (d) => d.meeting, goal: null, tint: STATUS.meeting.tint },
+      { id: 'away', name: 'Away', of: (d) => d.away, goal: null, tint: STATUS.away.tint },
+    ];
+
+    let today = new Date(); today.setHours(0, 0, 0, 0);
+    const key = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    const isWeekend = (d) => d.getDay() === 0 || d.getDay() === 6;
+    const monthDays = (y, m) => new Date(y, m + 1, 0).getDate();
+    const monthName = (d, style = 'short') => d.toLocaleDateString('en-US', { month: style });
+    const dayLong = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const zero = () => ({ active: 0, focus: 0, meeting: 0, away: 0 });
+
+    let hist = read(HIST_KEY, {});
+    function pullToday() {
+      const now = Date.now();
+      const tk = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+      let best = null;
+      for (const k of SOURCES) {
+        const s = read(k, null);
+        if (!s || !Array.isArray(s.sessions) || s.date !== tk) continue;
+        const t = zero();
+        s.sessions.forEach((x) => { if (x.p in t) t[x.p] += Math.max(0, ((x.e ?? now) - x.s) / 36e5); });
+        const sum = t.active + t.focus + t.meeting + t.away;
+        if (!best || sum > best.sum) best = { t, sum };
+      }
+      if (!best) return;
+      hist = read(HIST_KEY, hist);
+      hist[key(today)] = best.t;
+      write(HIST_KEY, hist);
+    }
+    function sample(d) {
+      if (!SEED || d >= today) return null;
+      let s = (d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()) % 2147483647;
+      const rnd = () => ((s = (s * 16807) % 2147483647), (s - 1) / 2147483646);
+      rnd(); rnd();
+      const half = (max) => Math.round(rnd() * max * 2) / 2;
+      if (isWeekend(d)) return rnd() < 0.22 ? { ...zero(), active: 0.5 + half(2) } : zero();
+      if (rnd() < 0.05) return zero();
+      const focus = 1 + half(3), meeting = 0.5 + half(2.5), away = 0.5 + half(1);
+      return { active: Math.max(1, 8.5 - focus - meeting) + half(1), focus, meeting, away };
+    }
+    function day(d) {
+      const k = key(d);
+      const future = d > today;
+      if (future) return { d, future, today: false, v: null, real: false };
+      if (hist[k]) return { d, future, today: +d === +today, v: hist[k], real: true };
+      const s = sample(d);
+      return { d, future, today: +d === +today, v: s, real: false, sample: !!s };
+    }
+    // offset 0 = this month, -1 = last month
+    function month(offset = 0) {
+      const start = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+      const n = monthDays(start.getFullYear(), start.getMonth());
+      return { start, n, days: Array.from({ length: n }, (_, i) => day(new Date(start.getFullYear(), start.getMonth(), i + 1))) };
+    }
+    // offset 0 = this week (Mon → today), -1 = last week
+    function week(offset = 0) {
+      const mon = new Date(today);
+      mon.setDate(today.getDate() - ((today.getDay() + 6) % 7) + offset * 7);
+      return { start: mon, n: 7, days: Array.from({ length: 7 }, (_, i) => { const d = new Date(mon); d.setDate(mon.getDate() + i); return day(d); }) };
+    }
+    const val = (dd, f) => (dd && dd.v ? f(dd.v) : 0);
+    const sum = (days, f) => days.reduce((a, dd) => a + val(dd, f), 0);
+    const totals = (days) => days.reduce((t, dd) => { if (dd.v) for (const k in t) t[k] += dd.v[k] || 0; return t; }, zero());
+
+    function fmtH(h) {
+      const mins = Math.round(h * 60), H = Math.floor(mins / 60), M = mins % 60;
+      return { num: H, rest: M ? `h ${pad(M)}m` : 'h' };
+    }
+    const hText = (h) => { const f = fmtH(h); return f.num ? `${f.num}${f.rest}` : `${Math.round(h * 60)}m`; };
+
+    function setTint(el, [g1, g2, ink, accent]) {
+      el.style.setProperty('--g1', g1);
+      el.style.setProperty('--g2', g2);
+      el.style.setProperty('--ink', ink);
+      el.style.setProperty('--accent', accent);
+    }
+    const rgba = (col, a) => {
+      if (col.startsWith('#')) { const h = col.slice(1); return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},${a})`; }
+      const m = col.match(/[\d.]+/g);
+      return m ? `rgba(${m[0]},${m[1]},${m[2]},${a})` : `rgba(29,29,27,${a})`;
+    };
+
+    // Monotone cubic path through points (no overshoot below zero).
+    function smooth(pts) {
+      if (pts.length < 2) return pts.length ? `M${pts[0][0]} ${pts[0][1]}` : '';
+      const n = pts.length, dx = [], dy = [], m = [], t = [];
+      for (let i = 0; i < n - 1; i++) { dx[i] = pts[i + 1][0] - pts[i][0]; dy[i] = pts[i + 1][1] - pts[i][1]; m[i] = dy[i] / dx[i]; }
+      t[0] = m[0]; t[n - 1] = m[n - 2];
+      for (let i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
+      for (let i = 0; i < n - 1; i++) {
+        if (m[i] === 0) { t[i] = t[i + 1] = 0; continue; }
+        const a = t[i] / m[i], b = t[i + 1] / m[i], s = a * a + b * b;
+        if (s > 9) { const k = 3 / Math.sqrt(s); t[i] = k * a * m[i]; t[i + 1] = k * b * m[i]; }
+      }
+      let d = `M${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
+      for (let i = 0; i < n - 1; i++) {
+        const h = dx[i] / 3;
+        d += ` C${(pts[i][0] + h).toFixed(2)} ${(pts[i][1] + h * t[i]).toFixed(2)} ${(pts[i + 1][0] - h).toFixed(2)} ${(pts[i + 1][1] - h * t[i + 1]).toFixed(2)} ${pts[i + 1][0].toFixed(2)} ${pts[i + 1][1].toFixed(2)}`;
+      }
+      return d;
+    }
+
+    // Line icons, 48 × 48, in currentColor (matching office-hours-type.html).
+    const ICONS = {
+      active: '<path d="M24 8.5c1.4 9.6 5 13.2 14.5 15.5-9.5 2.3-13.1 5.9-14.5 15.5-1.4-9.6-5-13.2-14.5-15.5C19 21.7 22.6 18.1 24 8.5Z"/>',
+      focus: '<circle cx="24" cy="24" r="14.5"/><circle cx="24" cy="24" r="8.5"/><circle cx="24" cy="24" r="2.6" fill="currentColor" stroke="none"/>',
+      meeting: '<path d="M30 15h7.5a3 3 0 0 1 3 3v9.5a3 3 0 0 1-3 3H37v4l-4.5-4"/><path d="M10.5 11h17a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H18l-5.5 4.5V27h-2a3 3 0 0 1-3-3V14a3 3 0 0 1 3-3Z"/>',
+      away: '<path d="M12 21h20v7.5A9.5 9.5 0 0 1 22.5 38h-1A9.5 9.5 0 0 1 12 28.5V21Z"/><path d="M32 24h2.5a4 4 0 0 1 0 8H31.5"/><path d="M18.5 16c-1.2-1.5 1.2-2.7 0-4.2M25 16c-1.2-1.5 1.2-2.7 0-4.2"/>',
+    };
+    const icon = (id) => `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[id]}</svg>`;
+
+    // Re-read the trackers every 30 s and when another tab changes them.
+    function watch(cb) {
+      const tick = () => {
+        const now = new Date(); now.setHours(0, 0, 0, 0);
+        if (+now !== +today) today = now;
+        pullToday();
+        cb();
+      };
+      setInterval(tick, 30000);
+      addEventListener('storage', (e) => { if (SOURCES.includes(e.key) || e.key === HIST_KEY) tick(); });
+    }
+
+    pullToday();
+    return {
+      STATUS, MEASURES, pad, clamp, read, write, key, isWeekend, monthName, dayLong, zero,
+      month, week, val, sum, totals, fmtH, hText, setTint, rgba, smooth, icon, watch,
+      get today() { return today; }, SEED,
+    };
+  })();
+
+
+    const { clamp, hText, read, write, isWeekend } = OH;
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    const IDS = ['active', 'focus', 'meeting', 'away'];
+    const NAMES = { active: 'Active', focus: 'Focus', meeting: 'Meeting', away: 'Away' };
+    // Night palette: luminous on the dark face. Away stays the neutral and carries a hatch.
+    const COLOR = { active: '#f5b944', focus: '#7ea9ff', meeting: '#ff8d6b', away: '#8f96b8' };
+    const HIST = 'office-hours-rhythm:days';
+    const SOURCES = ['office-hours-type:state', 'office-hours:state'];
+    const OPEN = 9, CLOSE = 18;
+    const pad = (n) => String(n).padStart(2, '0');
+    let range = read('office-hours-rhythm:range', 30) === 7 ? 7 : 30;
+
+    /* ---------- Hour buckets ---------- */
+    const empty = () => Array.from({ length: 24 }, () => ({ active: 0, focus: 0, meeting: 0, away: 0 }));
+    const key = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    let hist = read(HIST, {});
+
+    function pullToday() {
+      const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+      const tk = key(t0), now = Date.now();
+      let best = null;
+      for (const k of SOURCES) {
+        const s = read(k, null);
+        if (!s || !Array.isArray(s.sessions) || s.date !== tk) continue;
+        const hrs = empty(); let sum = 0;
+        s.sessions.forEach((x) => {
+          if (!(x.p in hrs[0])) return;
+          let a = Math.max(x.s, +t0); const e = x.e ?? now;
+          while (a < e) {
+            const h = Math.floor((a - +t0) / 36e5); if (h > 23) break;
+            const b = Math.min(e, +t0 + (h + 1) * 36e5);
+            hrs[h][x.p] += (b - a) / 60000; sum += (b - a) / 60000; a = b;
+          }
+        });
+        if (!best || sum > best.sum) best = { hrs, sum };
+      }
+      if (!best) return;
+      hist = read(HIST, hist);
+      hist[tk] = best.hrs.map((h) => IDS.map((id) => Math.round(h[id] * 10) / 10));
+      write(HIST, hist);
+    }
+
+    function sampleDay(d) {
+      if (!OH.SEED) return null;
+      let s = (d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()) % 2147483647 + 7;
+      const rnd = () => ((s = (s * 16807) % 2147483647), (s - 1) / 2147483646);
+      rnd(); rnd();
+      const hrs = empty();
+      if (isWeekend(d)) { if (rnd() < 0.25) hrs[10 + Math.floor(rnd() * 6)].active = 30 + rnd() * 30; return hrs; }
+      const start = 8.5 + rnd(), end = 17.25 + rnd() * 1.75;
+      for (let h = 0; h < 24; h++) {
+        const mins = clamp(Math.min(h + 1, end) - Math.max(h, start), 0, 1) * 60;
+        if (!mins) continue;
+        const w = {
+          focus: [9, 10].includes(h) ? 0.68 : [15, 16].includes(h) ? 0.42 : 0.1,
+          meeting: h === 11 ? 0.5 : h === 14 ? 0.44 : h === 13 ? 0.16 : 0.06,
+          away: h === 12 ? 0.62 : 0.05,
+        };
+        for (const k in w) w[k] = clamp(w[k] * (0.7 + rnd() * 0.6), 0, 0.9);
+        const used = w.focus + w.meeting + w.away, norm = used > 0.95 ? 0.95 / used : 1;
+        hrs[h].focus = mins * w.focus * norm; hrs[h].meeting = mins * w.meeting * norm; hrs[h].away = mins * w.away * norm;
+        hrs[h].active = Math.max(0, mins - hrs[h].focus - hrs[h].meeting - hrs[h].away);
+      }
+      return hrs;
+    }
+
+    function dayHours(d, today) {
+      const k = key(d);
+      if (hist[k]) return { hrs: hist[k].map((a) => ({ active: a[0], focus: a[1], meeting: a[2], away: a[3] })), real: true };
+      if (+d >= +today) return null;
+      const s = sampleDay(d);
+      return s ? { hrs: s, real: false } : null;
+    }
+
+    function aggregate() {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const avg = empty(); let days = 0, samples = 0;
+      for (let i = 0; i < range; i++) {
+        const d = new Date(today); d.setDate(today.getDate() - i);
+        const dh = dayHours(d, today); if (!dh) continue;
+        const sum = dh.hrs.reduce((a, h) => a + IDS.reduce((b, id) => b + h[id], 0), 0);
+        if (sum <= 0) continue;
+        days++; if (!dh.real) samples++;
+        dh.hrs.forEach((h, i2) => IDS.forEach((id) => { avg[i2][id] += h[id]; }));
+      }
+      if (days) avg.forEach((h) => IDS.forEach((id) => { h[id] /= days; }));
+      const tot = (h) => IDS.reduce((a, id) => a + h[id], 0);
+      const work = (h) => h.active + h.focus + h.meeting;
+      const busiest = avg.reduce((b, h, i) => (work(h) > work(avg[b]) ? i : b), 0);
+      const peaks = Object.fromEntries(IDS.map((id) => {
+        let best = 0;
+        for (let i = 0; i < 23; i++) if (avg[i][id] + avg[i + 1][id] > avg[best][id] + avg[best + 1][id]) best = i;
+        return [id, { from: best, to: best + 2, per: avg.reduce((a, h) => a + h[id], 0), max: Math.max(...avg.map((h) => h[id])) }];
+      }));
+      return { avg, days, samples, busiest, peaks, tot, work };
+    }
+
+    /* ---------- Geometry: noon at the top, midnight at the foot ---------- */
+    const S = 440, C = S / 2, R0 = 90, R = 182;
+    const ang = (h) => ((h - 12) / 24) * Math.PI * 2 - Math.PI / 2;
+    const P = (r, a) => [C + r * Math.cos(a), C + r * Math.sin(a)];
+    const f = (n) => n.toFixed(2);
+    function sector(r1, r2, a1, a2) {
+      if (r2 - r1 < 0.3) return '';
+      const [x1, y1] = P(r2, a1), [x2, y2] = P(r2, a2), [x3, y3] = P(r1, a2), [x4, y4] = P(r1, a1);
+      const big = a2 - a1 > Math.PI ? 1 : 0;
+      return `M${f(x1)} ${f(y1)}A${r2} ${r2} 0 ${big} 1 ${f(x2)} ${f(y2)}L${f(x3)} ${f(y3)}A${r1} ${r1} 0 ${big} 0 ${f(x4)} ${f(y4)}Z`;
+    }
+    const rad = (mins) => R0 + (clamp(mins, 0, 60) / 60) * (R - R0);
+
+    /* ---------- Card ---------- */
+    const el = document.querySelector('[data-rhythm]');
+    el.innerHTML = `
+      <header class="top">
+        <p class="eyebrow"><b>●</b> Office hours · daily rhythm</p>
+        <div class="seg" role="radiogroup" aria-label="Range">
+          <button type="button" role="radio" data-r="7" aria-checked="false">7 days</button>
+          <button type="button" role="radio" data-r="30" aria-checked="false">30 days</button>
+        </div>
+      </header>
+      <div class="layout">
+        <div class="dial">
+          <svg viewBox="0 0 ${S} ${S}" data-svg tabindex="0" role="slider" aria-label="Hour of the day" aria-valuemin="0" aria-valuemax="23"></svg>
+          <div class="center" data-center aria-live="polite"></div>
+        </div>
+        <div class="panel">
+          <h2 class="hl" data-hl aria-live="polite"></h2>
+          <p class="dek" data-dek></p>
+          <div class="legend" data-legend></div>
+        </div>
+      </div>
+      <table class="sr-only" data-table></table>`;
+    const q = (s) => el.querySelector(s);
+    const c = { hour: -1, status: null, grow: 1 };
+    let A = null;
+
+    const svg = q('[data-svg]');
+    const hourAt = (e) => {
+      const r = svg.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width * S - C, y = (e.clientY - r.top) / r.height * S - C;
+      const d = Math.hypot(x, y);
+      if (d < R0 * 0.8 || d > R + 26) return -1;
+      let a = Math.atan2(y, x) + Math.PI / 2; if (a < 0) a += Math.PI * 2;
+      return (Math.floor((a / (Math.PI * 2)) * 24) + 12) % 24;
+    };
+    svg.addEventListener('pointermove', (e) => setHour(hourAt(e)));
+    svg.addEventListener('pointerdown', (e) => setHour(hourAt(e)));
+    svg.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') setHour(-1); });
+    svg.addEventListener('keydown', (e) => {
+      const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+      if (step) { e.preventDefault(); setHour(((c.hour < 0 ? new Date().getHours() : c.hour) + step + 24) % 24); }
+      else if (e.key === 'Escape') setHour(-1);
+    });
+    svg.addEventListener('blur', () => setHour(-1));
+    const lg = q('[data-legend]');
+    lg.addEventListener('pointerover', (e) => { const b = e.target.closest('.lg'); if (b) setStatus(b.dataset.id); });
+    lg.addEventListener('pointerleave', () => setStatus(null));
+    lg.addEventListener('focusin', (e) => { const b = e.target.closest('.lg'); if (b) setStatus(b.dataset.id); });
+    lg.addEventListener('focusout', () => setStatus(null));
+    lg.addEventListener('click', (e) => { const b = e.target.closest('.lg'); if (b) setStatus(c.status === b.dataset.id ? null : b.dataset.id); });
+    q('.seg').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-r]'); if (!b || +b.dataset.r === range) return;
+      range = +b.dataset.r; write('office-hours-rhythm:range', range); renderAll(true);
+    });
+
+    function draw() {
+      let segs = '';
+      const gap = 0.014;
+      for (let h = 0; h < 24; h++) {
+        const a1 = ang(h) + gap, a2 = ang(h + 1) - gap;
+        let acc = 0;
+        IDS.forEach((id) => {
+          const m = A.avg[h][id] * c.grow;
+          if (m < 0.2) return;
+          const r1 = rad(acc) + (acc ? 1 : 0), r2 = rad(acc + m);
+          acc += m;
+          const hot = (c.hour < 0 || c.hour === h) && (!c.status || c.status === id);
+          segs += `<path class="seg-p${hot ? ' is-hot' : ''}" d="${sector(r1, r2, a1, a2)}" fill="${id === 'away' ? 'url(#hatch)' : COLOR[id]}" fill-opacity=".9" ${id === 'away' ? '' : 'filter="url(#glow)"'}/>`;
+        });
+      }
+      const labels = Array.from({ length: 8 }, (_, i) => i * 3).map((h) => {
+        if (h === 12 || h === 0) return '';
+        const [x, y] = P(R + 18, ang(h));
+        return `<text class="hlab${h % 6 === 0 ? ' is-major' : ''}" x="${f(x)}" y="${f(y + 3.5)}" text-anchor="middle">${pad(h)}</text>`;
+      }).join('');
+      const ticks = Array.from({ length: 96 }, (_, i) => {
+        const h = i / 4, major = i % 12 === 0, mid = i % 4 === 0;
+        const [x1, y1] = P(R + 4, ang(h)), [x2, y2] = P(R + (major ? 10 : mid ? 7 : 5), ang(h));
+        return `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${major ? 'var(--rule-2)' : 'var(--rule)'}"/>`;
+      }).join('');
+      // Sun at noon, moon at midnight
+      const [sx, sy] = P(R + 20, ang(12)), [mx, my] = P(R + 20, ang(0));
+      const sun = `<g class="glyph" transform="translate(${f(sx)} ${f(sy)})"><circle r="3.5"/>${[0, 45, 90, 135, 180, 225, 270, 315].map((d) => { const a = d * Math.PI / 180; return `<line x1="${f(Math.cos(a) * 6)}" y1="${f(Math.sin(a) * 6)}" x2="${f(Math.cos(a) * 8.5)}" y2="${f(Math.sin(a) * 8.5)}"/>`; }).join('')}</g>`;
+      const moon = `<path class="glyph" transform="translate(${f(mx)} ${f(my)})" d="M2.5 -5.5a6 6 0 1 0 3.5 9.5a5 5 0 0 1 -3.5 -9.5z"/>`;
+      // Office hours as a dotted amber arc outside the ticks
+      const [ox1, oy1] = P(R + 32, ang(OPEN)), [ox2, oy2] = P(R + 32, ang(CLOSE));
+      const lh = CLOSE + 0.9, [olx, oly] = P(R + 32, ang(lh));
+      let orot = ang(lh) * 180 / Math.PI + 90; if (orot > 90 && orot < 270) orot -= 180;
+      const now = new Date(), nh = now.getHours() + now.getMinutes() / 60;
+      const [n1x, n1y] = P(R0 - 10, ang(nh)), [n2x, n2y] = P(R + 4, ang(nh));
+      const hw = c.hour >= 0 ? sector(R0 - 4, R + 2, ang(c.hour), ang(c.hour + 1)) : '';
+      const [g30x, g30y] = P(rad(30), ang(1.5)), [g60x, g60y] = P(rad(60), ang(1.5));
+      svg.innerHTML = `
+        <defs>
+          <radialGradient id="faceG" cx="50%" cy="30%" r="70%"><stop offset="0" stop-color="#232b5c"/><stop offset="1" stop-color="#121733"/></radialGradient>
+          <linearGradient id="dayG" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#f5b944" stop-opacity=".09"/><stop offset=".5" stop-color="#f5b944" stop-opacity="0"/></linearGradient>
+          <pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="4" fill="${COLOR.away}" opacity=".25"/><rect width="1.6" height="4" fill="${COLOR.away}"/></pattern>
+          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="b"/><feColorMatrix in="b" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .5 0" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <circle class="face" cx="${C}" cy="${C}" r="${R}" fill="url(#faceG)"/>
+        <circle cx="${C}" cy="${C}" r="${R}" fill="url(#dayG)"/>
+        <circle class="guide" cx="${C}" cy="${C}" r="${rad(30)}" stroke-dasharray="1 4"/>
+        <circle class="guide" cx="${C}" cy="${C}" r="${R0}"/>
+        <path class="hot-wedge" d="${hw}"/>
+        ${segs}
+        <text class="hlab" x="${f(g30x)}" y="${f(g30y + 3)}" text-anchor="middle">30m</text>
+        <text class="hlab" x="${f(g60x)}" y="${f(g60y + 3)}" text-anchor="middle">60m</text>
+        ${ticks}${labels}${sun}${moon}
+        <path class="office" d="M${f(ox1)} ${f(oy1)}A${R + 32} ${R + 32} 0 0 1 ${f(ox2)} ${f(oy2)}"/>
+        <line class="now-hand" x1="${f(n1x)}" y1="${f(n1y)}" x2="${f(n2x)}" y2="${f(n2y)}"/>
+        <circle class="now" cx="${f(n2x)}" cy="${f(n2y)}" r="3"/>`;
+    }
+
+    function centre() {
+      const box = q('[data-center]');
+      if (c.hour >= 0) {
+        const h = A.avg[c.hour];
+        const parts = IDS.filter((id) => h[id] >= 0.5).map((id) => `<span style="color:${COLOR[id]}">${Math.round(h[id])}m</span>`).join(' · ');
+        box.innerHTML = `<p class="center__k">${pad(c.hour)}:00–${pad((c.hour + 1) % 24)}:00</p><p class="center__big">${Math.round(A.tot(h))}m</p><p class="center__sub">${parts || 'nothing logged'}</p>`;
+      } else if (c.status) {
+        const p = A.peaks[c.status];
+        box.innerHTML = `<p class="center__k" style="color:${COLOR[c.status]}">${NAMES[c.status]} peak</p><p class="center__big">${pad(p.from)}–${pad(p.to)}</p><p class="center__sub"><b>${hText(p.per / 60)}</b> a day</p>`;
+      } else {
+        const b = A.busiest;
+        box.innerHTML = `<p class="center__k">Busiest hour</p><p class="center__big">${pad(b)}:00</p><p class="center__sub"><b>${Math.round(A.work(A.avg[b]))}m</b> of work a day</p>`;
+      }
+    }
+
+    function texts() {
+      const lead = A.peaks.focus.per > 0 ? 'focus' : 'active', p = A.peaks[lead];
+      const hl = q('[data-hl]');
+      hl.style.setProperty('--c', COLOR[lead]);
+      const workDay = A.avg.reduce((a, h) => a + A.work(h), 0);
+      hl.innerHTML = A.days ? `Your <em>${NAMES[lead].toLowerCase()}</em> peaks from ${pad(p.from)}:00 to ${pad(p.to)}:00.` : `No hours logged in the last ${range} days.`;
+      q('[data-dek]').innerHTML = A.days
+        ? `<b>${hText(workDay / 60)}</b> of work on an average day, over <b>${A.days}</b> working ${A.days === 1 ? 'day' : 'days'} in the last ${range}. The dotted arc marks office hours, ${pad(OPEN)}–${pad(CLOSE)}.`
+        : 'Clock in on the office-hours tracker to start filling the dial.';
+      lg.innerHTML = IDS.map((id) => {
+        const pk = A.peaks[id], mx = pk.max || 1;
+        return `<button class="lg${c.status === id ? ' is-hot' : ''}" type="button" data-id="${id}" style="--c:${COLOR[id]}" aria-pressed="${c.status === id}" aria-label="${NAMES[id]}: ${hText(pk.per / 60)} a day, peaks ${pad(pk.from)} to ${pad(pk.to)}">
+          <span class="lg__sw${id === 'away' ? ' is-hatch' : ''}" aria-hidden="true"></span><span class="lg__nm">${NAMES[id]}</span><span class="lg__v">${hText(pk.per / 60)} · ${pad(pk.from)}–${pad(pk.to)}</span>
+          <span class="strip" aria-hidden="true">${A.avg.map((h, i) => `<i class="${i >= pk.from && i < pk.to ? 'is-peak' : ''}" style="--h:${(h[id] / mx * 100).toFixed(1)}%"></i>`).join('')}</span>
+          ${id === 'active' ? '<span class="strip-axis" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></span>' : ''}
+        </button>`;
+      }).join('');
+      el.querySelectorAll('[data-r]').forEach((b) => { const on = +b.dataset.r === range; b.setAttribute('aria-checked', String(on)); b.tabIndex = on ? 0 : -1; });
+      q('[data-table]').innerHTML = `<caption>Average minutes per hour, last ${range} days</caption><thead><tr><th>Hour</th>${IDS.map((id) => `<th>${NAMES[id]}</th>`).join('')}</tr></thead><tbody>${A.avg.map((h, i) => `<tr><td>${pad(i)}:00</td>${IDS.map((id) => `<td>${Math.round(h[id])}</td>`).join('')}</tr>`).join('')}</tbody>`;
+      el.setAttribute('aria-label', `Daily rhythm over the last ${range} days: busiest hour ${pad(A.busiest)}:00; ${NAMES[lead]} peaks ${pad(p.from)} to ${pad(p.to)}`);
+      aria();
+    }
+    function aria() {
+      svg.setAttribute('aria-valuenow', c.hour < 0 ? A.busiest : c.hour);
+      svg.setAttribute('aria-valuetext', c.hour < 0 ? 'Use the arrow keys to read each hour' : `${pad(c.hour)}:00, ${Math.round(A.tot(A.avg[c.hour]))} minutes a day`);
+    }
+
+    function setHour(h) {
+      if (h === c.hour) return;
+      c.hour = h;
+      el.classList.toggle('is-hour', h >= 0);
+      el.classList.toggle('is-hover', h >= 0 || !!c.status);
+      draw(); centre(); aria();
+    }
+    function setStatus(id) {
+      if (id === c.status) return;
+      c.status = id;
+      el.classList.toggle('is-status', !!id);
+      el.classList.toggle('is-hover', !!id || c.hour >= 0);
+      el.querySelectorAll('.lg').forEach((b) => { b.classList.toggle('is-hot', b.dataset.id === id); b.setAttribute('aria-pressed', String(b.dataset.id === id)); });
+      draw(); centre();
+    }
+
+    let raf = 0;
+    function renderAll(animate = false) {
+      A = aggregate();
+      texts(); centre();
+      document.querySelector('[data-note]').textContent = `Each wedge is one hour; its length is the average minutes per day in that hour, stacked by status. ${A.samples ? `${A.samples} of ${A.days} days use sample hours. ` : ''}Today comes live from the office-hours tracker.`;
+      if (!animate || reduce.matches) { c.grow = 1; draw(); return; }
+      const t0 = performance.now();
+      cancelAnimationFrame(raf);
+      (function step(t) {
+        const p = clamp((t - t0) / 1000, 0, 1);
+        c.grow = 1 - Math.pow(1 - p, 3); draw();
+        if (p < 1) raf = requestAnimationFrame(step);
+      })(t0);
+    }
+
+    pullToday();
+    renderAll(true);
+    setInterval(() => { pullToday(); renderAll(false); }, 60000);
+    addEventListener('storage', (e) => { if (SOURCES.includes(e.key)) { pullToday(); renderAll(false); } });
+  })();
+  </script>
+</body>
+</html>

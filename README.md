@@ -1,8 +1,8 @@
 # widget-vault
 
-Seventeen widgets, each in its own self-contained HTML file with no GSAP. Open any of them in a browser — there's no build step, and the only dependency is Google Fonts (Outfit, Inter).
+Thirty-four widgets, each in its own self-contained HTML file with no GSAP. Open any of them in a browser — there's no build step, and the only dependency is Google Fonts.
 
-All seventeen share the same design tokens (honey, night, ink and the warm card surface), animate with CSS transitions and the Web Animations API, and respect the reduced-motion setting.
+The first twenty-one share the same design tokens (honey, night, ink and the warm card surface), animate with CSS transitions and the Web Animations API, and respect the reduced-motion setting. The last six charts each have their own look (see the end of this file).
 
 | File                   | Widget          |
 | ---------------------- | --------------- |
@@ -10,6 +10,23 @@ All seventeen share the same design tokens (honey, night, ink and the warm card 
 | `time-tracker-tape.html` | Time tracker (tape) |
 | `office-hours-tape.html` | Office hours (tape) |
 | `office-hours-type.html` | Office hours (type) |
+| `office-hours-chart.html` | Office hours chart |
+| `office-hours-line.html` | Office hours line |
+| `office-hours-insights.html` | Office hours insights |
+| `office-hours-dome.html` | Office hours dome |
+| `kpi-sparkline.html` | Sparkline KPI |
+| `ranked-bars.html` | Ranked bars |
+| `hourly-rhythm.html` | Hourly rhythm |
+| `call-usage.html` | Call usage |
+| `call-recording.html` | Call recording |
+| `call-jar.html` | Minutes jar |
+| `office-property-slider.html` | Office property slider |
+| `property-card.html` | Property card (isometric) |
+| `property-city.html` | Property city |
+| `property-luxe.html` | The Portfolio (luxe property card) |
+| `property-dusk.html` | Property at dusk |
+| `property-dusk-light.html` | Property, evening edition (flat details) |
+| `property-cards.html` | Property cards with floor plan |
 | `progress-card.html`   | Weekly progress |
 | `onboarding-card.html` | Onboarding      |
 | `calendar-card.html`   | Week calendar   |
@@ -529,3 +546,383 @@ Settings go on `<body>`:
 | `data-seed`         | on      | Set to `off` to start empty instead of with a sample morning. |
 
 Behaviour otherwise matches the tape version: Space clocks in and out, 1–4 pick a status, a status left running carries over midnight, and open tabs stay in sync. State is saved under `office-hours-type:state`, separate from `office-hours-tape.html`.
+
+---
+
+## Office hours chart — `office-hours-chart.html`
+
+Office hours per month as a dot-matrix chart in the type style, in **Tinted** and **Paper**. Each card is 620 × 310.
+
+### Reading it
+
+- **Dots:** each column is a day and each dot is 30 minutes. Last month sits on the left in a faint tone and this month on the right in ink, so the two months compare at a glance. Every day keeps a baseline dot, so empty days and days still to come still read as days. Today is drawn in the accent colour.
+- **Labels:** under each month, its name and total ("OCT 188h 30m", "NOV 11h 53m").
+- **Header:** this month's total as the hero figure, then the change against last month at the same point in the month ("−30% vs Oct at this point") and the projected month total ("on pace for ~125h").
+- **Goal line:** one solid hairline at 8h for Online and 3h for Focus. Meetings and Away have no goal.
+
+### Interaction
+
+- **Tabs:** ONLINE (Active + Focus + Meeting), FOCUS, MEETINGS and AWAY. Switching regrows the columns. On the Tinted card the wash takes the measure's colour: honey, slate, terracotta or grey.
+- **Hover / tap a day:** the column turns the accent colour and a small label above it gives the date and value. The header then shows that day's figure, with the Active / Focus / Meeting split on the Online tab and a note if the day is sample data. Pointing past today snaps to today.
+- **Keyboard:** focus the plot and use ← / → to step through days, Home / End for the ends, and Escape to clear. A hidden table lists every day for screen readers.
+- **Load-in:** the columns grow from the baseline, left to right.
+
+### Data
+
+- **Today:** comes live from `office-hours-type.html`, or from `office-hours-tape.html`, whichever has more time logged in the same browser. It refreshes every 30 seconds and when another tab changes.
+- **History:** the trackers only keep today, so the chart records each day's totals itself under `office-hours-chart:days`. Real history builds up from the first day you use it.
+- **Sample data:** days with no recorded history use repeatable sample hours. They're drawn slightly lighter, marked "sample" in the header and the table, and counted in the note under the cards. Remove `data-seed` from `<body>` to show only real days.
+- **Saved setting:** the chosen tab is stored under `office-hours-chart:measure`.
+
+---
+
+## Office hours charts — line, insights and dome
+
+Three more layouts on the same data as `office-hours-chart.html`, each in **Tinted** and **Paper**. Like that chart:
+
+- **Today:** comes live from `office-hours-type.html` or `office-hours-tape.html`.
+- **History:** each day's totals are kept in `office-hours-chart:days`.
+- **Sample data:** untracked past days use repeatable sample hours. These are marked "sample" on hover and counted in the note below the cards. Remove `data-seed` from `<body>` to show only real days.
+
+### Line — `office-hours-line.html` (620 × 310)
+
+Running totals for the month, after your "Orders" and "Patient scores" references.
+
+- **Lines:** this month is a smooth accent line with a soft wash under it, last month is a quiet grey line, and goal pace (8h per workday for Online, 3h for Focus) is a thin line. The curves are monotone, so they never dip below the data.
+- **Labels:** a legend, plus a direct label at each line's end, e.g. "Nov 12h", "Oct 188h" and "Goal".
+- **Header:** the total so far, the change against last month by the same day ("−44% vs Oct by day 3"), and the projected month total.
+- **Hover / tap:** a crosshair with a dot on each line and a tooltip giving both months' totals by that day and that day's own hours. The header follows. ← / → step through the days.
+- **Tabs:** Online, Focus, Meetings and Away. The lines draw in on load and when you switch.
+
+### Insights — `office-hours-insights.html` (three cards, 620 across)
+
+Three small cards in a row, after your Insights / Conversion / ROI reference. On phones they become a horizontal swipe.
+
+| Card     | Big number                                        | Mini chart                                               | Caption                                            |
+| -------- | ------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------- |
+| Online   | Hours against goal so far (8h per workday, counting today's elapsed share) | Cumulative steps with a soft wash, a straight goal-pace line and an end dot | Hours so far and the projected total             |
+| Focus    | Focus as a share of online time                   | A calm wave of the daily focus share (three-day average) with a glowing end dot | The most focused day                            |
+| Meetings | Meetings as a share of online time                | A soft donut with the hours in the middle                | The share, and how it moved against last period    |
+
+- **Comparison:** each big number has an arrow comparing it with the same span of the previous period.
+- **Period:** the **Monthly ⌄** pill switches its row between this month and this week, each compared with the same span of the period before.
+- **Hover:** hovering a chart gives the exact day's figure in the caption.
+- **Tinted:** each card takes its own colour: honey, slate or terracotta.
+
+### Dome — `office-hours-dome.html` (620 wide, about 540 tall)
+
+The month's split across Active, Focus, Meeting and Away as overlapping half-domes, after your last reference. A semicircle is half as tall as it is wide, so this card is taller than 310.
+
+- **Headline:** a sentence, "Most of your November went to (Active)", with the leading status in a dotted pill, then "47% · 57h 30m of 122h 30m clocked in so far".
+- **Domes:** they share a baseline and a left edge. Each dome's *area* is proportional to its share, and the largest spans the card. Labels (the % and the status name) sit just inside each dome's arc and slide along it to avoid each other. If a label can't fit, its caption below carries it.
+- **Captions:** one per status, each with a dashed leader, the line icon in a dotted circle, the status name and its hours and share.
+- **Hover:** hovering a dome or a caption focuses it, dimming the rest, and the headline changes to "Meeting took 18% of November".
+- **Months:** switch between **This month** and **Last month**. The domes grow to their new sizes.
+- **Colours:** Tinted uses soft pastel domes in each status's colour. Paper uses warm greys in steps.
+
+## Charts with their own look
+
+These six don't follow the Tinted/Paper pair. Each has a layout, typeface and colours chosen for what it shows. All three can be read with the pointer or the keyboard, and each has a hidden table for screen readers.
+
+### Sparkline KPI — `kpi-sparkline.html` (620 wide, about 400 tall)
+
+A ticker board: a dark card, monospaced figures and one glowing line.
+
+- **Type:** JetBrains Mono for the figures, so the digits don't shift when the number changes, and Inter Tight for the text.
+- **Colours:** night card #151514, with a swappable `data-accent` line (honey on the demo, lilac for sales). Rises use mint #8fe3b5 and falls use coral #ff8b7a.
+- **Figure:** the total counts up to its value. Beside it are a % chip and the previous period's total.
+- **Ledger:** Peak, Low, Avg/day and Latest, each with a dotted leader.
+- **Chart:** runs to the card's edges. It has dotted gridlines with a single right-hand axis, the previous period as a dashed line, and the latest day as a pulsing dot.
+- **Scrub:** use the pointer or ← / →. The big number shows that day's value and compares it with the same day last period.
+- **Range:** 7D, 30D or 90D.
+- **API:** `KPISpark.mount(el, { label, noun, context, format, short, series: [{ date, value }], ranges, range })` returns `{ update(series) }`.
+
+### Ranked bars — `ranked-bars.html` (620 wide, about 670 tall)
+
+An editorial chart page: newsprint paper, serif numerals and one red bar.
+
+- **Type:** Instrument Serif for the headline, the italic rank numerals and the values, and DM Sans for labels.
+- **Colours:** paper #f4efe4 with a faint grain, ink #171614, and vermilion #d9432a for the leader.
+- **Masthead:** a double rule, with italic Week / Month / Quarter links. A red underline slides to the active one.
+- **Headline:** "*Shop rebuild* led this month with 46h." A dek under it gives the leader's share and last period's place.
+- **Rows:** each has a big italic rank, the name with its client in small caps, a thin bar, the value, and its movement: ▲ n, ▼ n, HELD or NEW. When the period changes, rows slide to their new places. Everything below the top five folds into "Everything else".
+- **Facts:** Total, Top three and Biggest climb, in ruled columns.
+- **API:** `RankedBars.mount(el, { context, noun, format, periods: [{ id, label, name, prevName, items: [{ id, name, sub, value }], prev }], period, top })`.
+
+### Hourly rhythm — `hourly-rhythm.html` (720 wide, about 480 tall)
+
+A night-sky dial on which the working day glows on a 24-hour face.
+
+- **Type:** Sora for the headline and the centre figure, and IBM Plex Mono for the hours.
+- **Colours:** an indigo face. The statuses are luminous on it: Active amber #f5b944, Focus blue #7ea9ff, Meeting coral #ff8d6b, and Away #8f96b8. Away is the neutral, so it is also hatched.
+- **Dial:** noon is at the top, marked by a sun, and midnight is at the foot, marked by a moon. Each hour is a glowing wedge whose length is the average minutes per day, stacked by status. A dotted amber arc marks office hours (09–18), and a hand shows the time now.
+- **Panel:**
+  - the headline, "Your *focus* peaks from 09:00 to 11:00.";
+  - the average working day;
+  - a legend in which each status has its minutes a day, its peak window and a 24-bar strip of its day, with the peak bars lit.
+- **Hover:**
+  - hover a wedge, or step through the hours with ← / →, to see that hour's breakdown in the centre;
+  - hover or click a status in the legend to isolate it on the dial.
+- **Range:** 7 days or 30 days.
+- **Phone:** the headline moves above the dial, and the legend stacks under it.
+- **Data:**
+  - Today is read live from `office-hours-type:state` or `office-hours:state` and bucketed by hour into `office-hours-rhythm:days`.
+  - Past days with no record use a labelled sample workday, but only while `data-seed` is on `<body>`.
+
+### Call usage — `call-usage.html` (900 wide, about 560 tall)
+
+Monthly call minutes as **daily stacked columns**, one per day, split into one-on-one and room calls. The chart answers two questions: how the time divides between the two kinds of call, and when the calls happen. Cost is just minutes × the rate, so a separate cost series would draw the same shape again; it goes in the hover readout and the stats row instead.
+
+- **Look:** matches the app it comes from. It uses Noto Sans, white cards on a pale-blue wash, the round month pager, and the pie icon.
+- **Colours:** one-on-one blue #2f6fe4 and room amber #e39a2d. The pair passes the palette checker. Amber is under 3:1 contrast on white, so values always appear as text as well.
+- **Totals:** the month's minutes, then each kind's minutes, share and limit note ("Never limited", "No monthly limit"), then a split bar.
+- **Chart:**
+  - Weekends are shaded, and today is labelled.
+  - Days still to come show as dotted ticks.
+  - The y-axis is in minutes and steps up to suit the month.
+- **Hover:** hover a column, or use ← / → when the chart has focus, to see the day's breakdown, calls and cost. Click a legend item to isolate that kind on the chart.
+- **Stats:** Calls, Average call, Busiest day and Cost. Cost is total person-minutes × `rate`, so 99.6 min × $0.002 gives $0.1992.
+- **Months:** the ‹ › pager goes back to the first month that has data and forward to the current month. The columns grow in when the month changes.
+- **API:** `CallUsage.mount(el, { calls: [{ date, kind: 'one' | 'room', minutes }], rate: 0.002, month: { y, m } })` returns `{ update(calls) }`.
+- **Sample data:** the calls are generated for the demo. October 2026 adds up to the screenshot's totals: 17 + 82 min, 27 calls and $0.1992.
+
+### Call recording — `call-recording.html` (860 wide, about 530 tall)
+
+The month's calls, end to end in the order they happened, drawn as one audio waveform you can play back. October's 99.6 minutes become a recording 01:39:36 long.
+
+- **Look:**
+  - a dark recorder deck with a blinking REC light;
+  - Martian Mono for the timecode and Geist for the text;
+  - one-on-one calls in blue #84b4ff and room calls in amber #ffb547.
+- **Waveform:**
+  - Each burst is one call, and its width is the call's length.
+  - Bursts swell in and fade out.
+  - Room calls are busier, and longer calls are louder.
+  - Thin lines and small numbers mark where each new day starts.
+  - The time ruler runs from 00:00:00 to the month's total.
+- **Playback:**
+  - The month sweeps through once when it opens.
+  - Press **Play**, or Space or Enter while the waveform has focus, to play it back again (7 seconds by default; set with `duration`).
+  - The timecode counts up, the subline names the call under the playhead, and the four meters fill: One-on-one, Room calls, Calls and Cost.
+- **Scrub:** click or drag anywhere on the waveform. ← / → jump from call to call. The gaps between calls take no time.
+- **Hover:** hover a burst to see its date and start time, kind, length, its span on the timecode and its cost.
+- **Solo:** click the One-on-one or Room calls meter to dim the other kind.
+- **Months:** the ‹ › pager.
+- **API:** `CallRecording.mount(el, { calls: [{ date, kind: 'one' | 'room', minutes }], rate, month: { y, m }, duration })` returns `{ update(calls) }`. Here `date` carries the call's start time.
+- **Sample data:** uses the same sample calls as `call-usage.html`.
+
+### Minutes jar — `call-jar.html` (780 wide, about 500 tall)
+
+Every call drops into a glass jar as a ball, and the jar fills by how long you talked.
+
+- **Look:** soft mint and cream, with Bricolage Grotesque for the numbers and Instrument Sans for the text. One-on-one balls are blue #3a6df0. Room-call balls are amber #f39a1e and carry a white ring, so they can be told apart without relying on colour.
+- **Balls:** each ball's *area* is the call's minutes. The jar is the same size every month, with its scale set by `capacity`, which is 160 minutes at the brim. That keeps months comparable by how full the jar gets.
+- **Physics:** the balls fall in one after another in the order the calls happened. They bounce, settle and pack into the rounded bottom, and heavier balls push lighter ones aside. Under reduced motion, the jar is settled out of sight and drawn once.
+- **Interaction:**
+  - Hover a ball, or tab to the jar and use the arrow keys, to see the call's length, kind, date and time, and cost.
+  - Drag inside the jar to stir the balls.
+  - **Pour again** drops them all in again.
+  - Click a legend row to dim the other kind.
+- **Panel:**
+  - the month's minutes;
+  - the change from last month;
+  - the balls and minutes for each kind, with its limit note;
+  - the cost and the biggest ball;
+  - the ‹ › month pager.
+- **API:** `CallJar.mount(el, { calls: [{ date, kind: 'one' | 'room', minutes }], rate, month: { y, m }, capacity })` returns `{ update(calls) }`.
+- **Sample data:** uses the same sample calls as `call-usage.html`.
+
+## Office property slider — `office-property-slider.html` (1080 wide, about 770 tall)
+
+A slider of office listings. Each slide pairs a building photo with a spec panel laid out like the title block on an architect's drawing.
+
+- **Look:**
+  - Paper #f6f5f1 with solid black rules and an orange #ff5a1f accent.
+  - Archivo for the text and IBM Plex Mono for labels.
+  - Each name is set in narrow capitals. Crop marks frame the photo, and a large 01 / 06 index sits on it.
+- **Each slide shows:**
+  - the space type and its status: Available, Few desks left or Waitlist;
+  - the name;
+  - the address, with the nearest station and the walk time;
+  - capacity in desks;
+  - floor area in m², with tsubo worked out from it;
+  - rent per desk per month;
+  - the date it's available and the floors;
+  - the minimum lease;
+  - the year built and the number of storeys;
+  - a 24-cell occupancy meter;
+  - amenity chips, each with a line icon;
+  - **Book a viewing**, or **Join the waitlist** when full;
+  - a save toggle.
+- **Motion:** the new photo wipes in over the old one in the direction you're going, then slowly zooms out. The panel text rises in, line by line.
+- **Navigation:**
+  - ‹ › buttons, ← / → keys, and swiping on the photo.
+  - A thumbnail strip, which scrolls sideways on phones.
+  - Autoplay every 7 seconds, shown by an orange progress line on the current thumbnail. It pauses on hover or focus and when the tab is hidden, and the **Auto** button turns it off. It's off under reduced motion.
+- **Photos:** loaded from Unsplash's image CDN at sized URLs (800, 1400 and 2000 wide), with the next and previous photos preloaded. Each slide credits its photographer, linked to the photo's Unsplash page. If an image fails to load, a drafting-grid placeholder takes its place.
+  - Kimon Maritz, İltun Huseynli, Sam Balye, Mike Hindle, Adrian Cuj and Simone Hutsch (all free Unsplash licence, not Unsplash+).
+- **API:** `PropertySlider.mount(el, { listings: [{ id, name, type, status, address, ward, station: { name, walk }, desks, taken, area, floors, rent, from, lease, built, storeys, amenities, image: { id, by, page, alt } }], interval })` returns `{ go(i), next(), prev() }`.
+  - Amenity keys: `24/7`, `meeting`, `terrace`, `bike`, `shower`, `pets`, `parking`.
+- **Sample data:** the listings are made up for the demo.
+
+## Property card (isometric) — `property-card.html` (680 wide, about 740 tall)
+
+An upgrade of the app's **Property** card. It keeps the app's look: Noto Sans, the pale-blue glass card, the cream **Add property** pill and the dark **Enter** pill.
+
+- **Buildings:**
+  - Each building is drawn in code as an isometric SVG from its storey count and palette, so no photo is needed. Every property gets its own building.
+  - Each has pastel faces with glass windows, some of them lit, plus louvres, slab lines and a door.
+  - On top is a rooftop unit; around it sit a ground plate, trees and lamp posts.
+- **Your floor:** your floor glows as an orange band, with a floating pin that reads "7F · Your office · 5 here now". Hover any floor to read its number.
+- **Turntable:**
+  - The current building sits in the centre, with its neighbours smaller, desaturated and blurred to each side.
+  - Use ‹ ›, the dots, ← / →, a swipe, or a click on a neighbour.
+  - The model rotates smoothly from one property to the next.
+- **Info card:**
+  - the name and a floor badge;
+  - 〒 postal code and address, with the building line, and a Japanese address line when given;
+  - copy-address and open-in-Maps buttons;
+  - floors and seats;
+  - avatars of who is here now, with a live dot.
+- **Enter:** zooms the camera into your floor and fades the building out, then calls `onEnter(p)`.
+- **Add property:** opens a sheet asking for name, postal code, your floor, address, building and storeys. The new property gets its own building on the turntable, and `onAdd(p)` is called.
+- **API:** `PropertyCard.mount(el, { properties: [{ id, name, postal, address, addressJa, building, floors, floor, seats, here, palette: [left, right, roof] }], onEnter, onAdd })` returns `{ go(i), add(p) }`.
+- **Sample data:** the first property uses the screenshot's Nagoya Test Office. The others are made up.
+
+### Shared building engine
+
+`property-city.html` and `property-luxe.html` each inline the same `Iso.building(p, { uid, theme })` generator. It is the isometric drawer from `property-card.html`, pulled out so a theme can restyle it:
+
+- plate and path colours;
+- glass gradients;
+- lit-window colour and how often windows are lit;
+- trees and lamps, including the lamp glow;
+- the colour of your floor.
+
+It returns the building's layers (`base`, `bld`, `body`), its bounding box, and where to anchor the "your floor" pin.
+
+## Property city — `property-city.html` (960 wide, about 560 tall)
+
+All your offices stand together on one isometric city block at dusk.
+
+- **Look:**
+  - An indigo-to-peach sky with twinkling stars and a moon.
+  - Lit windows, glowing street lamps, and headlights moving along the roads.
+  - Unlabelled scenery buildings fill the empty lots.
+  - Manrope for the text.
+- **Camera:** pick an office from the list, a building, or ← / →, and the camera flies over and zooms to it. Your floor glows orange, with a "7F · Your office" pin, and the other offices dim slightly. **Whole block** pulls back to show every building, each with a floating name tag. Drag to pan.
+- **Panel:** a glass card with the city, name, floor badge, address (with Japanese), floors / seats / here now, **Add** and **Enter**.
+- **Enter:** dives into your floor and fades to "Entering …".
+- **Add:** a new building goes up on the next free lot.
+- **Phone:** the panel moves under the map, and the office list becomes a sideways-scrolling row.
+- **API:** `PropertyCity.mount(el, { properties: [{ …as property-card, city }], onEnter, onAdd })`.
+
+## The Portfolio — `property-luxe.html` (720 wide, about 1080 tall)
+
+A luxury take: one building, large and lit like a showpiece, with the details set beneath it.
+
+- **Look:**
+  - Near-black with an inset gold hairline frame.
+  - Cormorant Garamond for the name and figures, Jost in widely spaced small caps for labels, and Noto Serif JP for the Japanese address.
+- **Stage:**
+  - The building is drawn in ivory, champagne, graphite or rose stone, with dark glass and warm gold-lit windows, and is mirrored in a polished floor.
+  - A soft spotlight sits on it.
+  - Your floor is traced in glowing gold, with a gold leader line to "Your office / Floor 07".
+  - Switching property sinks the old building away and lowers the new one in.
+- **Details:**
+  - a kicker such as "Nagoya · Naka";
+  - the name in large serif, with its last word in italic;
+  - a gold rule with a diamond;
+  - the address in spaced capitals, with the Japanese line;
+  - a ruled spec row: Floor 07F · Storeys 09 · Seats 40 · Present 05.
+- **Actions:** a hairline **Add property** button and a gold **Enter** button. Enter zooms into the floor and fades to "Welcome to …".
+- **Navigation:** a Roman-numeral index (I / IV) with arrows, a list of cities under a sliding gold underline, ← / →, and swipe.
+- **API:** `PropertyLuxe.mount(el, { properties, onEnter, onAdd })`. A property can carry `palette` to choose its stone. Otherwise the four stones take turns.
+
+## Property at dusk — `property-dusk.html` (680 wide, about 790 tall)
+
+The `property-card` turntable slider, lit for evening with the atmosphere of `property-city`, but with no city around it.
+
+- **Sky:**
+  - an indigo-to-peach evening gradient;
+  - twinkling stars and a glowing moon;
+  - a live **JST clock** chip.
+- **Buildings:**
+  - one building per slide, in the dusk palette, with glowing street lamps;
+  - lit windows that slowly switch on and off in the current building;
+  - your floor glowing orange, with a floating "7F · Your office · 5 here now" pin.
+- **Turntable:** the neighbouring buildings sit to each side, darker and smaller.
+  - Use ‹ ›, the dots, ← / →, swipe, or click a neighbour.
+  - Hover a floor to read its number.
+- **Info:**
+  - a dark glass card: city · building, the name and a floor badge;
+  - the 〒 address with its Japanese line;
+  - copy and Maps buttons;
+  - Floors / Seats / Here now, with avatars and a live dot.
+- **Actions:** a cream **Add property** button and an orange **Enter** button.
+  - **Enter** zooms into your floor and fades to "Entering …".
+  - **Add** puts a new building on the turntable.
+- **Engine:** uses the shared `Iso` building engine with the dusk theme.
+- **API:** `PropertyDusk.mount(el, { properties, onEnter, onAdd })`.
+
+## Property, evening edition — `property-dusk-light.html` (680 wide, about 860 tall)
+
+The `property-dusk` behaviour on `property-card`'s light background and turntable.
+
+- **Details:** they sit in the card under the slider, as plain type with hairline rules, not as a floating card.
+  - **Left column:** an orange kicker (City · Building), the name at 30px, the address in 〒 form, the building line and the Japanese line.
+  - **Right column:** "Your floor" with a large **7F**, "of 9 storeys" beneath it, and a small floor stack with your floor lit orange.
+  - **Ruled row:** Seats, Here now (avatars and a live dot), and the copy and Maps buttons.
+- **From the dusk version:**
+  - windows switch on and off in the current building;
+  - a live JST clock chip shows a sun by day and a moon after dark;
+  - the floating "7F · Your office" pin;
+  - **Enter** zooms into your floor.
+- **Phone:** the floor block moves under the address, behind its own rule.
+- **API:** the same as `property-card.html`: `PropertyCard.mount(el, { properties: [{ …, city }], onEnter, onAdd })`.
+
+## Property cards — `property-cards.html` (680 wide, about 900 tall)
+
+The evening edition, with two changes.
+
+- **Building cards:**
+  - Every building sits on its own rounded card with its own soft sky and sun.
+  - The active card is large and centred. The previous and next cards peek in at the edges, slightly smaller and paler, each labelled with its city.
+  - Clicking a peeking card brings it to the centre.
+- **Details row:** three columns, divided by hairlines.
+  - **Left:** the name and address.
+  - **Middle:** an outline **floor plan**.
+  - **Right:** **Your floor**, with the floor stack and the large **7F**.
+  - Below them, a ruled row holds Seats, Here now, and the copy and Maps buttons.
+- **Floor plan:** bold walls only. It's just the outline of the floor and its rooms, with gaps where the doors are, and no furniture or labels.
+- **Phone:**
+  - The name and address take the full width.
+  - The plan and **Your floor** sit side by side beneath them.
+- **Dividers:** the hairlines between the address, the floor plan and your floor run the full height of the row.
+- **Here now:**
+  - a soft white pill of up to four round photo avatars, then a **+N** bubble for everyone else;
+  - initials on a colour gradient when there's no photo;
+  - a blue badge with moving audio bars on anyone **in a call**;
+  - a name tooltip on hover.
+  - The people's initials are looked up in `cfg.people` (`{ AK: { name, photo, talking } }`), or you can pass objects straight into `here`.
+  - The demo portraits are free Unsplash photos.
+- **Latest tidy-up:**
+  - The Japanese address line is removed.
+  - The building cards are flat (a hairline, no shadow) and taller, with no dot indicator.
+  - **Stat row:** it uses the same three columns as the details above (Seats · Here now · tools), so the dividers line up.
+  - **Here now:** a plain row of small overlapping avatars with a "+N" count, with no pill.
+- **On the active card:**
+  - **Bottom-left:** "Here now · N" with the avatars.
+  - **Top-right:** the copy and Maps buttons.
+  - The time chip and the stat row are gone.
+- **Your floor:** reads **7/9 Floor**, with the floor stack beside it and **Seats** underneath. Its title lines up with **Floor plan**.
+- **Finishing touches:**
+  - The floor-plan column has equal space on both sides.
+  - A hairline divider separates the details from the **Add property** and **Enter** buttons.
+  - **Here now:**
+    - the avatars are spaced apart;
+    - the **+N** is a matching grey circle;
+    - an empty office shows a grey circle with a dash.
+  - The property name and the big floor number share a lighter medium weight.
+  - **Arrows:** the ‹ › buttons sit on the left and right edges of the active card, centred vertically. The **01 / 04** counter stays in the header.
+- **API:** the same as `property-card.html`, plus `people`.

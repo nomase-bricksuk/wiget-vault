@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Office hours dome</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100;200;300;400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    @property --g1 { syntax: "<color>"; inherits: true; initial-value: #f3eee2; }
+    @property --g2 { syntax: "<color>"; inherits: true; initial-value: #e6dfcd; }
+    @property --ink { syntax: "<color>"; inherits: true; initial-value: #1d1d1b; }
+    @property --accent { syntax: "<color>"; inherits: true; initial-value: #c48a12; }
+
+    :root {
+      --font-display: "Outfit", system-ui, sans-serif;
+      --font-body: "Inter", system-ui, -apple-system, "Segoe UI", "Hiragino Sans", sans-serif;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      justify-items: center;
+      align-content: center;
+      gap: 14px;
+      padding: 28px 16px;
+      color: #1d1d1b;
+      font: 400 14px/1.45 var(--font-body);
+      -webkit-font-smoothing: antialiased;
+      background:
+        radial-gradient(90% 70% at 100% 100%, #f8d66e8c, #f8d66e00 70%),
+        radial-gradient(60% 50% at 88% 0%, #fae4a080, #fae4a000 70%),
+        linear-gradient(160deg, #f5f3ee, #f2efe6 55%, #fbeec0);
+    }
+    .caption { width: min(100%, 620px); margin: 10px 0 -4px; padding-left: 4px; color: #75726a; font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; }
+    .caption:first-child { margin-top: 0; }
+    .note { width: min(100%, 620px); padding: 0 4px; color: #75726a; font-size: 11px; }
+
+    button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
+    p, h2, h3, ul, ol, table, figure { margin: 0; }
+    ul, ol { padding: 0; list-style: none; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+    /* Shared card surfaces */
+    .surface {
+      --dim: color-mix(in srgb, var(--ink) 66%, transparent);
+      --faint: color-mix(in srgb, var(--ink) 44%, transparent);
+      --hair: color-mix(in srgb, var(--ink) 13%, transparent);
+      --hair-2: color-mix(in srgb, var(--ink) 24%, transparent);
+      position: relative;
+      color: var(--ink);
+      overflow: hidden;
+      isolation: isolate;
+      transition: --g1 1s var(--ease), --g2 1s var(--ease), --ink 1s var(--ease), --accent 1s var(--ease);
+    }
+    .surface :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+    .surface[data-style="tint"] {
+      background:
+        radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, #fff 30%, transparent), transparent 55%),
+        linear-gradient(150deg, var(--g1), var(--g2));
+      box-shadow: 0 30px 60px -36px color-mix(in srgb, var(--g2) 80%, #000), 0 0 0 1px color-mix(in srgb, #fff 32%, transparent) inset;
+    }
+    .surface[data-style="paper"] {
+      --ink: #1d1d1b;
+      background: #f8f5ee;
+      box-shadow: 0 1px 0 #fff inset, 0 0 0 1px #1d1d1b12, 0 24px 48px -34px #3c32145c;
+    }
+    .surface[data-style="paper"]::before {
+      content: ""; position: absolute; inset: 0; z-index: -1; opacity: .35; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.27 0 0 0 0 0.2 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    .kicker { color: var(--ink); font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; white-space: nowrap; }
+    .kicker span { margin-left: 8px; color: var(--faint); font-weight: 500; }
+    .tabs { display: flex; gap: 16px; }
+    .tabs button { color: var(--faint); font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; transition: color .3s; }
+    .tabs button:hover { color: var(--dim); }
+    .tabs button[aria-checked="true"] { color: var(--ink); font-weight: 600; }
+    .delta { display: inline-flex; align-items: center; gap: 3px; margin-right: 6px; color: var(--ink); font-weight: 600; }
+    .delta svg { width: 11px; height: 11px; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .surface, .tabs button { transition: none; }
+    }
+
+    /* =========================================================
+       Dome card — 620 wide; a semicircle is half as tall as wide
+       ========================================================= */
+    .ohd { width: min(100%, 620px); padding: 22px 28px 22px; border-radius: 26px; }
+    .head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .headline { margin-top: 18px; font: 300 26px/1.3 var(--font-display); letter-spacing: -.015em; }
+    .headline .pill {
+      display: inline-block;
+      padding: 0 14px 2px;
+      border-radius: 999px;
+      box-shadow: 0 0 0 1px var(--hair-2) inset;
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+      outline: 1px dashed var(--hair-2); outline-offset: 3px;
+      white-space: nowrap;
+    }
+    .headline small { display: block; margin-top: 4px; color: var(--dim); font: 400 13px/1.4 var(--font-body); letter-spacing: 0; }
+    .headline small b { color: var(--ink); font-weight: 500; }
+
+    .plot { position: relative; margin-top: 18px; }
+    .plot svg { display: block; width: 100%; overflow: visible; }
+    .dome { transition: opacity .3s var(--ease); cursor: pointer; }
+    .ohd.is-hover .dome:not(.is-hot) { opacity: .35; }
+    .dlab { pointer-events: none; transition: opacity .3s; }
+    .ohd.is-hover .dlab:not(.is-hot) { opacity: .35; }
+    .dlab .pct { fill: var(--ink); font: 300 30px var(--font-display); letter-spacing: -.02em; }
+    .dlab .pct tspan { fill: var(--faint); }
+    .dlab .nm { fill: var(--dim); font: 500 10.5px var(--font-body); letter-spacing: .12em; text-transform: uppercase; }
+    .base { stroke: var(--hair-2); stroke-width: 1; }
+
+    .caps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 0; }
+    .cap { display: grid; justify-items: center; gap: 6px; padding-top: 0; text-align: center; color: var(--dim); }
+    .cap__lead { width: 0; height: 16px; border-left: 1px dashed var(--hair-2); }
+    .cap__ico { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: var(--ink); box-shadow: 0 0 0 1px var(--hair-2) inset; outline: 1px dashed var(--hair); outline-offset: 3px; transition: background-color .3s; }
+    .cap__ico svg { width: 18px; height: 18px; }
+    .cap__nm { color: var(--ink); font-size: 12px; font-weight: 500; }
+    .cap__nm i { display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--c); vertical-align: 1px; }
+    .cap__h { font-size: 11.5px; font-variant-numeric: tabular-nums; }
+    .cap:hover .cap__ico, .cap.is-hot .cap__ico { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+    .ohd.is-hover .cap:not(.is-hot) { opacity: .5; }
+
+    @media (max-width: 560px) {
+      .ohd { padding: 18px 18px 18px; }
+      .head { flex-wrap: wrap; }
+      .headline { font-size: 22px; }
+      .caps { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 14px; }
+      .dlab .pct { font-size: 22px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .dome, .dlab { transition: none; } }
+  </style>
+</head>
+<body data-seed>
+
+  <p class="caption">Tinted</p>
+  <article class="surface ohd" data-oh-dome data-style="tint" aria-label="How the month split"></article>
+
+  <p class="caption">Paper</p>
+  <article class="surface ohd" data-oh-dome data-style="paper" aria-label="How the month split"></article>
+
+  <p class="note" data-note></p>
+
+  <script>
+  (() => {
+  /* =========================================================
+     Office-hours data — shared by the office-hours chart widgets.
+     Today comes live from office-hours-type.html / office-hours-tape.html;
+     each day's totals are kept in office-hours-chart:days; untracked past
+     days fall back to repeatable sample hours (data-seed on <body>).
+     ========================================================= */
+  const OH = (() => {
+    const HIST_KEY = 'office-hours-chart:days';
+    const SOURCES = ['office-hours-type:state', 'office-hours:state'];
+    const SEED = document.body.hasAttribute('data-seed');
+    const pad = (n) => String(n).padStart(2, '0');
+    const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+    const read = (k, fb) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? fb; } catch { return fb; } };
+    const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+    const STATUS = {
+      active: { name: 'Active', dot: '#c48a12', tint: ['#fcefc6', '#f1cf7a', '#2e2107', '#a86c08'], soft: ['#fbe6a8', '#fdf3d6'] },
+      focus: { name: 'Focus', dot: '#2f557e', tint: ['#e6eaee', '#b3c0cd', '#121a22', '#2f557e'], soft: ['#c9d6e4', '#e9eef4'] },
+      meeting: { name: 'Meeting', dot: '#b4531f', tint: ['#f8e1d2', '#e5a985', '#331607', '#a6491a'], soft: ['#f3c9ad', '#fae9dd'] },
+      away: { name: 'Away', dot: '#77736a', tint: ['#ecebe6', '#c9c6be', '#26251f', '#6f6b62'], soft: ['#dcd9d2', '#efede8'] },
+    };
+    const MEASURES = [
+      { id: 'online', name: 'Online', of: (d) => d.active + d.focus + d.meeting, goal: 8, tint: STATUS.active.tint },
+      { id: 'focus', name: 'Focus', of: (d) => d.focus, goal: 3, tint: STATUS.focus.tint },
+      { id: 'meeting', name: 'Meetings', of: (d) => d.meeting, goal: null, tint: STATUS.meeting.tint },
+      { id: 'away', name: 'Away', of: (d) => d.away, goal: null, tint: STATUS.away.tint },
+    ];
+
+    let today = new Date(); today.setHours(0, 0, 0, 0);
+    const key = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    const isWeekend = (d) => d.getDay() === 0 || d.getDay() === 6;
+    const monthDays = (y, m) => new Date(y, m + 1, 0).getDate();
+    const monthName = (d, style = 'short') => d.toLocaleDateString('en-US', { month: style });
+    const dayLong = (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const zero = () => ({ active: 0, focus: 0, meeting: 0, away: 0 });
+
+    let hist = read(HIST_KEY, {});
+    function pullToday() {
+      const now = Date.now();
+      const tk = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+      let best = null;
+      for (const k of SOURCES) {
+        const s = read(k, null);
+        if (!s || !Array.isArray(s.sessions) || s.date !== tk) continue;
+        const t = zero();
+        s.sessions.forEach((x) => { if (x.p in t) t[x.p] += Math.max(0, ((x.e ?? now) - x.s) / 36e5); });
+        const sum = t.active + t.focus + t.meeting + t.away;
+        if (!best || sum > best.sum) best = { t, sum };
+      }
+      if (!best) return;
+      hist = read(HIST_KEY, hist);
+      hist[key(today)] = best.t;
+      write(HIST_KEY, hist);
+    }
+    function sample(d) {
+      if (!SEED || d >= today) return null;
+      let s = (d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()) % 2147483647;
+      const rnd = () => ((s = (s * 16807) % 2147483647), (s - 1) / 2147483646);
+      rnd(); rnd();
+      const half = (max) => Math.round(rnd() * max * 2) / 2;
+      if (isWeekend(d)) return rnd() < 0.22 ? { ...zero(), active: 0.5 + half(2) } : zero();
+      if (rnd() < 0.05) return zero();
+      const focus = 1 + half(3), meeting = 0.5 + half(2.5), away = 0.5 + half(1);
+      return { active: Math.max(1, 8.5 - focus - meeting) + half(1), focus, meeting, away };
+    }
+    function day(d) {
+      const k = key(d);
+      const future = d > today;
+      if (future) return { d, future, today: false, v: null, real: false };
+      if (hist[k]) return { d, future, today: +d === +today, v: hist[k], real: true };
+      const s = sample(d);
+      return { d, future, today: +d === +today, v: s, real: false, sample: !!s };
+    }
+    // offset 0 = this month, -1 = last month
+    function month(offset = 0) {
+      const start = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+      const n = monthDays(start.getFullYear(), start.getMonth());
+      return { start, n, days: Array.from({ length: n }, (_, i) => day(new Date(start.getFullYear(), start.getMonth(), i + 1))) };
+    }
+    // offset 0 = this week (Mon → today), -1 = last week
+    function week(offset = 0) {
+      const mon = new Date(today);
+      mon.setDate(today.getDate() - ((today.getDay() + 6) % 7) + offset * 7);
+      return { start: mon, n: 7, days: Array.from({ length: 7 }, (_, i) => { const d = new Date(mon); d.setDate(mon.getDate() + i); return day(d); }) };
+    }
+    const val = (dd, f) => (dd && dd.v ? f(dd.v) : 0);
+    const sum = (days, f) => days.reduce((a, dd) => a + val(dd, f), 0);
+    const totals = (days) => days.reduce((t, dd) => { if (dd.v) for (const k in t) t[k] += dd.v[k] || 0; return t; }, zero());
+
+    function fmtH(h) {
+      const mins = Math.round(h * 60), H = Math.floor(mins / 60), M = mins % 60;
+      return { num: H, rest: M ? `h ${pad(M)}m` : 'h' };
+    }
+    const hText = (h) => { const f = fmtH(h); return f.num ? `${f.num}${f.rest}` : `${Math.round(h * 60)}m`; };
+
+    function setTint(el, [g1, g2, ink, accent]) {
+      el.style.setProperty('--g1', g1);
+      el.style.setProperty('--g2', g2);
+      el.style.setProperty('--ink', ink);
+      el.style.setProperty('--accent', accent);
+    }
+    const rgba = (col, a) => {
+      if (col.startsWith('#')) { const h = col.slice(1); return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},${a})`; }
+      const m = col.match(/[\d.]+/g);
+      return m ? `rgba(${m[0]},${m[1]},${m[2]},${a})` : `rgba(29,29,27,${a})`;
+    };
+
+    // Monotone cubic path through points (no overshoot below zero).
+    function smooth(pts) {
+      if (pts.length < 2) return pts.length ? `M${pts[0][0]} ${pts[0][1]}` : '';
+      const n = pts.length, dx = [], dy = [], m = [], t = [];
+      for (let i = 0; i < n - 1; i++) { dx[i] = pts[i + 1][0] - pts[i][0]; dy[i] = pts[i + 1][1] - pts[i][1]; m[i] = dy[i] / dx[i]; }
+      t[0] = m[0]; t[n - 1] = m[n - 2];
+      for (let i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
+      for (let i = 0; i < n - 1; i++) {
+        if (m[i] === 0) { t[i] = t[i + 1] = 0; continue; }
+        const a = t[i] / m[i], b = t[i + 1] / m[i], s = a * a + b * b;
+        if (s > 9) { const k = 3 / Math.sqrt(s); t[i] = k * a * m[i]; t[i + 1] = k * b * m[i]; }
+      }
+      let d = `M${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
+      for (let i = 0; i < n - 1; i++) {
+        const h = dx[i] / 3;
+        d += ` C${(pts[i][0] + h).toFixed(2)} ${(pts[i][1] + h * t[i]).toFixed(2)} ${(pts[i + 1][0] - h).toFixed(2)} ${(pts[i + 1][1] - h * t[i + 1]).toFixed(2)} ${pts[i + 1][0].toFixed(2)} ${pts[i + 1][1].toFixed(2)}`;
+      }
+      return d;
+    }
+
+    // Line icons, 48 × 48, in currentColor (matching office-hours-type.html).
+    const ICONS = {
+      active: '<path d="M24 8.5c1.4 9.6 5 13.2 14.5 15.5-9.5 2.3-13.1 5.9-14.5 15.5-1.4-9.6-5-13.2-14.5-15.5C19 21.7 22.6 18.1 24 8.5Z"/>',
+      focus: '<circle cx="24" cy="24" r="14.5"/><circle cx="24" cy="24" r="8.5"/><circle cx="24" cy="24" r="2.6" fill="currentColor" stroke="none"/>',
+      meeting: '<path d="M30 15h7.5a3 3 0 0 1 3 3v9.5a3 3 0 0 1-3 3H37v4l-4.5-4"/><path d="M10.5 11h17a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H18l-5.5 4.5V27h-2a3 3 0 0 1-3-3V14a3 3 0 0 1 3-3Z"/>',
+      away: '<path d="M12 21h20v7.5A9.5 9.5 0 0 1 22.5 38h-1A9.5 9.5 0 0 1 12 28.5V21Z"/><path d="M32 24h2.5a4 4 0 0 1 0 8H31.5"/><path d="M18.5 16c-1.2-1.5 1.2-2.7 0-4.2M25 16c-1.2-1.5 1.2-2.7 0-4.2"/>',
+    };
+    const icon = (id) => `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[id]}</svg>`;
+
+    // Re-read the trackers every 30 s and when another tab changes them.
+    function watch(cb) {
+      const tick = () => {
+        const now = new Date(); now.setHours(0, 0, 0, 0);
+        if (+now !== +today) today = now;
+        pullToday();
+        cb();
+      };
+      setInterval(tick, 30000);
+      addEventListener('storage', (e) => { if (SOURCES.includes(e.key) || e.key === HIST_KEY) tick(); });
+    }
+
+    pullToday();
+    return {
+      STATUS, MEASURES, pad, clamp, read, write, key, isWeekend, monthName, dayLong, zero,
+      month, week, val, sum, totals, fmtH, hText, setTint, rgba, smooth, icon, watch,
+      get today() { return today; }, SEED,
+    };
+  })();
+
+
+    const { STATUS, clamp, monthName, hText } = OH;
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+    const IDS = ['active', 'focus', 'meeting', 'away'];
+    let offset = 0;                                  // 0 this month, -1 last month
+
+    function split() {
+      const m = OH.month(offset);
+      const t = OH.totals(m.days.filter((d) => !d.future));
+      const total = IDS.reduce((a, k) => a + t[k], 0);
+      const parts = IDS.map((id) => ({ id, h: t[id], share: total ? t[id] / total : 0 }));
+      return { m, total, parts, top: [...parts].sort((a, b) => b.share - a.share)[0] };
+    }
+
+    const cards = [...document.querySelectorAll('[data-oh-dome]')].map((el, n) => {
+      el.innerHTML = `
+        <header class="head">
+          <p class="kicker">Office hours<span data-when></span></p>
+          <div class="tabs" role="radiogroup" aria-label="Month">
+            <button type="button" role="radio" data-off="0" aria-checked="true">This month</button>
+            <button type="button" role="radio" data-off="-1" aria-checked="false">Last month</button>
+          </div>
+        </header>
+        <h2 class="headline" data-headline aria-live="polite"></h2>
+        <div class="plot"><svg data-svg role="img"></svg></div>
+        <div class="caps" data-caps></div>
+        <table class="sr-only" data-table></table>`;
+      const q = (s) => el.querySelector(s);
+      const c = { el, q, n, tint: el.dataset.style === 'tint', hot: null, shown: Object.fromEntries(IDS.map((id) => [id, 0])), W: 0 };
+      if (c.tint) OH.setTint(el, ['#f9f5ec', '#eef0f3', '#1d1d1b', '#c48a12']);
+      q('.tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-off]'); if (b) setOffset(+b.dataset.off); });
+      q('[data-caps]').addEventListener('pointerover', (e) => { const b = e.target.closest('.cap'); if (b) setHot(c, b.dataset.id); });
+      q('[data-caps]').addEventListener('pointerleave', () => setHot(c, null));
+      q('[data-caps]').addEventListener('focusin', (e) => { const b = e.target.closest('.cap'); if (b) setHot(c, b.dataset.id); });
+      q('[data-caps]').addEventListener('focusout', () => setHot(c, null));
+      q('[data-svg]').addEventListener('pointerover', (e) => { const d = e.target.closest('.dome'); if (d) setHot(c, d.dataset.id); });
+      q('[data-svg]').addEventListener('pointerleave', () => setHot(c, null));
+      new ResizeObserver(() => { const w = q('.plot').clientWidth; if (Math.abs(w - c.W) > .5) { c.W = w; draw(c); } }).observe(q('.plot'));
+      return c;
+    });
+
+    function setOffset(o) {
+      if (o === offset) return;
+      offset = o;
+      cards.forEach((c) => c.q('.tabs').querySelectorAll('[data-off]').forEach((b) => b.setAttribute('aria-checked', String(+b.dataset.off === o))));
+      renderAll(true);
+    }
+
+    /* ---------- Headline ---------- */
+    function headline(c, s) {
+      const mName = monthName(s.m.start, 'long');
+      const hot = c.hot ? s.parts.find((p) => p.id === c.hot) : null;
+      const p = hot || s.top;
+      const word = STATUS[p.id].name;
+      const lead = hot ? `${word} took` : `Most of ${offset === 0 ? 'your ' : ''}${mName} went to`;
+      c.q('[data-headline]').innerHTML = s.total
+        ? `${hot ? '' : `${lead} `}<span class="pill">${word}</span>${hot ? ` took ${Math.round(p.share * 100)}% of ${mName}` : ''}
+           <small><b>${Math.round(p.share * 100)}%</b> · ${hText(p.h)} of ${hText(s.total)} clocked in${offset === 0 ? ' so far' : ''}</small>`
+        : `Nothing logged in ${mName} yet <small>Clock in on the office-hours tracker to start filling this in.</small>`;
+      c.q('[data-when]').textContent = `${mName} ${s.m.start.getFullYear()}`;
+    }
+
+    /* ---------- Domes ---------- */
+    function draw(c, from = null) {
+      const s = split();
+      const W = c.W;
+      if (!W) return;
+      const narrow = W < 420;
+      const R = W / 2;                                           // the largest dome spans the width
+      const labelRoom = 4;
+      const H = R + labelRoom;
+      const base = H;
+      const maxShare = Math.max(...s.parts.map((p) => p.share), 0.0001);
+      const surface = c.tint ? 'var(--g1)' : '#f8f5ee';
+      const order = [...s.parts].sort((a, b) => b.share - a.share);
+
+      const svg = c.q('[data-svg]');
+      svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+      svg.setAttribute('height', H);
+      const rOf = (p) => R * Math.sqrt((c.shown[p.id] ?? 0) / maxShare);   // area-proportional
+
+      // Labels sit just inside each dome's own arc. Start at the apex; if that spot is taken,
+      // slide along the arc to the right. If nothing fits, the caption below carries it.
+      const placed = [];
+      const LW = narrow ? 62 : 80, LH = narrow ? 34 : 42, inset = narrow ? 26 : 34;
+      const lab = (p) => {
+        const r = rOf(p), cx = r, rr = Math.max(0, r - inset);
+        for (const phi of [0, 0.45, 0.8, 1.05, 1.25]) {
+          const x = cx + rr * Math.sin(phi), y = base - rr * Math.cos(phi);
+          if (y > base - 22 || x + LW / 2 > W) continue;
+          if (placed.some((q) => Math.abs(q.x - x) < LW && Math.abs(q.y - y) < LH)) continue;
+          placed.push({ x, y });
+          return { x, y };
+        }
+        return null;
+      };
+
+      const gradId = (id) => `g-${c.n}-${id}`;
+      const defs = IDS.map((id) => {
+        const st = STATUS[id];
+        const [a, b] = c.tint ? st.soft : ['#e7e3da', '#f3f0ea'];
+        return `<linearGradient id="${gradId(id)}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}" stop-opacity=".7"/></linearGradient>`;
+      }).join('');
+
+      const domes = order.filter((p) => c.shown[p.id] > 0.0001).map((p) => {
+        const r = rOf(p);
+        const d = `M0 ${base} A${r} ${r} 0 0 1 ${2 * r} ${base} Z`;
+        const paperShade = c.tint ? '' : ` style="filter:brightness(${(1 - 0.05 * order.indexOf(p)).toFixed(2)})"`;
+        return `<path class="dome${c.hot === p.id ? ' is-hot' : ''}" data-id="${p.id}" d="${d}" fill="url(#${gradId(p.id)})" stroke="${surface}" stroke-width="2"${paperShade}>
+          <title>${STATUS[p.id].name}: ${Math.round(p.share * 100)}%, ${hText(p.h)}</title></path>`;
+      }).join('');
+      const labels = order.filter((p) => c.shown[p.id] > 0.02).map((p) => {
+        const at = lab(p);
+        if (!at) return '';
+        const { x, y } = at;
+        return `<g class="dlab${c.hot === p.id ? ' is-hot' : ''}" data-id="${p.id}">
+          <text class="pct" x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle">${Math.round(c.shown[p.id] / Math.max(1e-6, s.parts.reduce((a, q) => a + c.shown[q.id], 0)) * 100)}<tspan>%</tspan></text>
+          <text class="nm" x="${x.toFixed(1)}" y="${(y + 16).toFixed(1)}" text-anchor="middle">${STATUS[p.id].name}</text></g>`;
+      }).join('');
+
+      svg.innerHTML = `<defs>${defs}</defs>${domes}<line class="base" x1="0" x2="${W}" y1="${base}" y2="${base}"/>${labels}`;
+      svg.setAttribute('aria-label', s.parts.map((p) => `${STATUS[p.id].name} ${Math.round(p.share * 100)}%`).join(', '));
+    }
+
+    function captions(c, s) {
+      c.q('[data-caps]').innerHTML = s.parts.map((p) => `
+        <button class="cap${c.hot === p.id ? ' is-hot' : ''}" type="button" data-id="${p.id}" style="--c:${STATUS[p.id].dot}"
+          aria-label="${STATUS[p.id].name}: ${Math.round(p.share * 100)}%, ${hText(p.h)}">
+          <span class="cap__lead" aria-hidden="true"></span>
+          <span class="cap__ico">${OH.icon(p.id)}</span>
+          <span class="cap__nm"><i aria-hidden="true"></i>${STATUS[p.id].name}</span>
+          <span class="cap__h">${hText(p.h)} · ${Math.round(p.share * 100)}%</span>
+        </button>`).join('');
+    }
+
+    function setHot(c, id) {
+      if (c.hot === id) return;
+      c.hot = id;
+      c.el.classList.toggle('is-hover', !!id);
+      c.el.querySelectorAll('.dome, .dlab, .cap').forEach((n) => n.classList.toggle('is-hot', n.dataset.id === id));
+      headline(c, split());
+    }
+
+    function table(c, s) {
+      c.q('[data-table]').innerHTML = `<caption>${monthName(s.m.start, 'long')}: time by status</caption><thead><tr><th>Status</th><th>Hours</th><th>Share</th></tr></thead><tbody>${
+        s.parts.map((p) => `<tr><td>${STATUS[p.id].name}</td><td>${hText(p.h)}</td><td>${Math.round(p.share * 100)}%</td></tr>`).join('')}</tbody>`;
+    }
+
+    /* ---------- Animation: domes grow to their share ---------- */
+    let raf = 0;
+    function renderAll(animate = false) {
+      const s = split();
+      cards.forEach((c) => { headline(c, s); captions(c, s); table(c, s); });
+      const target = Object.fromEntries(s.parts.map((p) => [p.id, p.share]));
+      if (!animate || reduce.matches) { cards.forEach((c) => { c.shown = { ...target }; draw(c); }); note(s); return; }
+      const starts = cards.map((c) => ({ ...c.shown }));
+      const t0 = performance.now();
+      const ease = (p) => 1 - Math.pow(1 - p, 3);
+      cancelAnimationFrame(raf);
+      (function step(t) {
+        let busy = false;
+        cards.forEach((c, ci) => {
+          IDS.forEach((id, k) => {
+            const p = clamp((t - t0 - k * 90 - ci * 120) / 800, 0, 1);
+            if (p < 1) busy = true;
+            c.shown[id] = starts[ci][id] + (target[id] - starts[ci][id]) * ease(p);
+          });
+          draw(c);
+        });
+        if (busy) raf = requestAnimationFrame(step);
+      })(t0);
+      note(s);
+    }
+    function note(s) {
+      const n = s.m.days.filter((d) => d.sample).length;
+      document.querySelector('[data-note]').textContent = `Dome areas are proportional to each status's share of clocked-in time.${n ? ` ${n} untracked days use sample hours.` : ''} Today comes live from the office-hours tracker.`;
+    }
+
+    renderAll(true);
+    OH.watch(() => renderAll(false));
+    document.fonts?.ready.then(() => cards.forEach((c) => draw(c)));
+  })();
+  </script>
+</body>
+</html>
