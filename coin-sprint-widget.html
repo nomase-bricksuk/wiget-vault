@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coins</title>
+<style>
+/* =========================================================
+   MINI COIN WIDGET  —  copy this CSS block + the JS block
+   ========================================================= */
+.mini-coin {
+  --coin-size: 20px;                         /* ~60% of a 32px character */
+  --coin-thick: calc(var(--coin-size) * .2);
+  display: inline-block;
+  width: var(--coin-size);
+  height: var(--coin-size);
+  perspective: calc(var(--coin-size) * 6);
+  vertical-align: middle;
+}
+.mini-coin__body {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.mini-coin__layer {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: linear-gradient(to bottom,
+    var(--edge-dark) 0%, var(--edge) 25%, var(--light) 48%, var(--edge) 72%, var(--edge-dark) 100%);
+  filter: brightness(var(--edge-bright, 1));
+}
+.mini-coin__face {
+  position: absolute; inset: 0; border-radius: 50%;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  overflow: hidden;
+  background: radial-gradient(circle at 32% 28%, var(--light) 0%, var(--mid) 50%, var(--dark) 100%);
+}
+/* raised outer rim + recessed inner field (simplified for small sizes) */
+.mini-coin__field {
+  position: absolute; inset: 13%; border-radius: 50%;
+  background: radial-gradient(circle at 62% 68%, var(--light) 0%, var(--mid) 60%, var(--dark) 130%);
+  box-shadow:
+    inset calc(var(--coin-size) * .03) calc(var(--coin-size) * .035) calc(var(--coin-size) * .04) rgba(0,0,0,.3),
+    inset calc(var(--coin-size) * -.02) calc(var(--coin-size) * -.02) calc(var(--coin-size) * .03) rgba(255,255,255,.35);
+  display: grid; place-items: center;
+}
+.mini-coin__icon {
+  width: 60%; height: 60%;
+  color: var(--icon);
+  filter: drop-shadow(0 calc(var(--coin-size) * .025) 0 rgba(255,255,255,.45));
+}
+.mini-coin__icon svg { display: block; width: 100%; height: 100%; fill: currentColor; }
+.mini-coin__shade {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: #000; opacity: 0; pointer-events: none;
+}
+.mini-coin__shine {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.7) 48%, transparent 60%);
+  background-size: 320% 100%;
+  mix-blend-mode: soft-light; pointer-events: none;
+}
+
+/* ---- variants ---- */
+.mini-coin--gold {
+  --light: #ffe680; --mid: #f7bb1e; --dark: #c27c04;
+  --edge: #d99410;  --edge-dark: #935800; --icon: #a86502;
+}
+.mini-coin--blue {
+  --light: #a6d0ff; --mid: #2f80ef; --dark: #10408f;
+  --edge: #2263c6;  --edge-dark: #0a2b66; --icon: #0d3a85;
+}
+
+
+/* page */
+html, body { margin: 0; height: 100%; }
+body { display: grid; place-items: center; background: #0f1720; }
+.coins { display: flex; gap: 16px; }
+</style>
+</head>
+<body>
+<div class="coins">
+  <span class="mini-coin mini-coin--gold" data-icon="star"></span>
+  <span class="mini-coin mini-coin--blue" data-icon="camera" data-offset="90"></span>
+</div>
+<script>
+/* =========================================================
+   MINI COIN WIDGET JS — one shared animation loop for all coins
+   ========================================================= */
+window.MiniCoin = (() => {
+  const ICONS = {
+    star:   '<svg viewBox="0 0 24 24"><path d="M12 1.8l3.1 6.6 7.1.8-5.3 4.9 1.4 7.1L12 17.6l-6.3 3.6 1.4-7.1L1.8 9.2l7.1-.8z"/></svg>',
+    camera: '<svg viewBox="0 0 24 24"><path d="M8.3 3.5h7.4l1.6 2.8H21a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2h3.7zM12 8.2a5.3 5.3 0 1 0 0 10.6 5.3 5.3 0 0 0 0-10.6zm0 2.6a2.7 2.7 0 1 1 0 5.4 2.7 2.7 0 0 1 0-5.4zM19.4 8.4a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z" fill-rule="evenodd"/></svg>'
+  };
+  const LX = -0.45, LZ = 0.9, LN = Math.hypot(LX, LZ);
+  const lx = LX / LN, lz = LZ / LN;
+  const coins = [];
+  let globalSpeed = null;
+  let globalThick = null;   // px; null = 20% of coin size
+
+  function init(el) {
+    let keepAngle = null;
+    if (el._miniCoin) {
+      keepAngle = el._miniCoin.angle;
+      coins.splice(coins.indexOf(el._miniCoin), 1);
+      el._miniCoin = null;
+    }
+    const size = parseFloat(getComputedStyle(el).getPropertyValue('--coin-size')) || 20;
+    const thick = Math.max(1, Math.round(globalThick ?? size * 0.2));
+    const body = document.createElement('div');
+    body.className = 'mini-coin__body';
+    // edge: one disc per pixel of thickness
+    for (let i = 0; i < thick; i++) {
+      const d = document.createElement('div');
+      d.className = 'mini-coin__layer';
+      d.style.transform = `translateZ(${(-thick / 2 + i + 0.5).toFixed(2)}px)`;
+      body.appendChild(d);
+    }
+    const icon = ICONS[el.dataset.icon] || ICONS.star;
+    const mk = (tf) => {
+      const f = document.createElement('div');
+      f.className = 'mini-coin__face';
+      f.style.transform = tf;
+      f.innerHTML = `<div class="mini-coin__field"><div class="mini-coin__icon">${icon}</div></div>
+                     <div class="mini-coin__shade"></div><div class="mini-coin__shine"></div>`;
+      body.appendChild(f);
+      return { shade: f.querySelector('.mini-coin__shade'), shine: f.querySelector('.mini-coin__shine') };
+    };
+    const front = mk(`translateZ(${thick / 2}px)`);
+    const back  = mk(`rotateY(180deg) translateZ(${thick / 2}px)`);
+    el.innerHTML = '';
+    el.appendChild(body);
+    el.setAttribute('role', 'img');
+    if (!el.hasAttribute('aria-label')) el.setAttribute('aria-label', (el.dataset.icon || 'star') + ' coin');
+    const c = { el, body, front, back, angle: keepAngle ?? +(el.dataset.offset || 0), speed: +(el.dataset.speed || 70) };
+    el._miniCoin = c;
+    coins.push(c);
+  }
+
+  function shade(f, nx, nz, a) {
+    const lit = Math.max(0, nx * lx + nz * lz);
+    f.shade.style.opacity = (0.55 * (1 - lit)).toFixed(3);
+    const w = ((a % 360) + 540) % 360 - 180;
+    f.shine.style.backgroundPosition = `${(50 + w * 1.1).toFixed(1)}% 0`;
+  }
+
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let prev = performance.now();
+  function tick(now) {
+    const dt = Math.min(0.05, (now - prev) / 1000);
+    prev = now;
+    for (const c of coins) {
+      if (!reduce) c.angle += (globalSpeed ?? c.speed) * dt;
+      const r = c.angle * Math.PI / 180, s = Math.sin(r), k = Math.cos(r);
+      c.body.style.transform = `rotateY(${c.angle.toFixed(2)}deg)`;
+      shade(c.front, s, k, c.angle);
+      shade(c.back, -s, -k, c.angle + 180);
+      c.body.style.setProperty('--edge-bright', (0.75 + 0.35 * Math.abs(s)).toFixed(3));
+    }
+    requestAnimationFrame(tick);
+  }
+
+  document.querySelectorAll('.mini-coin').forEach(init);
+  requestAnimationFrame(tick);
+  // change size of all coins (rebuilds the edge for the new thickness)
+  function setSize(px) {
+    coins.slice().forEach(c => { c.el.style.setProperty('--coin-size', px + 'px'); init(c.el); });
+  }
+  // change edge thickness of all coins (px)
+  function setThickness(px) {
+    globalThick = px;
+    coins.slice().forEach(c => init(c.el));
+  }
+  return { init, setSize, setThickness, setSpeed: v => { globalSpeed = v; } };
+})();
+
+</script>
+<script type="module">
+  import { Pane } from 'https://cdn.jsdelivr.net/npm/tweakpane@4.0.5/dist/tweakpane.min.js';
+
+  const params = { background: '#0f1720', size: 20, thickness: 4, speed: 70 };
+  const coinsEl = document.querySelector('.coins');
+  let thickBinding;
+  let prevSize = params.size;
+  let resetting = false;
+
+  const pane = new Pane({ title: 'Coin settings' });
+  pane.addBinding(params, 'background', { label: 'Background' })
+    .on('change', e => document.body.style.background = e.value);
+
+  pane.addBinding(params, 'size', { label: 'Size (px)', min: 8, max: 160, step: 1 })
+    .on('change', e => {
+      coinsEl.style.gap = Math.round(e.value * 0.8) + 'px';
+      if (!resetting) {
+        // keep thickness in proportion when the size changes
+        const ratio = params.thickness / prevSize;
+        params.thickness = Math.max(1, Math.round(e.value * ratio));
+        MiniCoin.setThickness(params.thickness);
+        thickBinding.refresh();
+      }
+      prevSize = e.value;
+      MiniCoin.setSize(e.value);
+    });
+
+  thickBinding = pane.addBinding(params, 'thickness', { label: 'Thickness (px)', min: 1, max: 60, step: 1 });
+  thickBinding.on('change', e => MiniCoin.setThickness(e.value));
+
+  pane.addBinding(params, 'speed', { label: 'Speed (°/s)', min: 0, max: 360, step: 1 })
+    .on('change', e => MiniCoin.setSpeed(e.value));
+
+  pane.addButton({ title: 'Reset' }).on('click', () => {
+    resetting = true;
+    Object.assign(params, { background: '#0f1720', size: 20, thickness: 4, speed: 70 });
+    pane.refresh();
+    resetting = false;
+    document.body.style.background = params.background;
+    MiniCoin.setThickness(4);
+    MiniCoin.setSize(20);
+    MiniCoin.setSpeed(70);
+    prevSize = 20;
+  });
+</script>
+</body>
+</html>

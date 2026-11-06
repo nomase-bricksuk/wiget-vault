@@ -40,6 +40,7 @@ The first twenty-one share the same design tokens (honey, night, ink and the war
 | `weather-sky.html`     | Weather sky       |
 | `weather-mini.html`    | Weather mini      |
 | `weather-type.html`    | Weather type      |
+| `coin-sprint-widget.html`    | Coin Sprint     |
 
 ---
 
@@ -926,3 +927,34 @@ The evening edition, with two changes.
   - The property name and the big floor number share a lighter medium weight.
   - **Arrows:** the ‹ › buttons sit on the left and right edges of the active card, centred vertically. The **01 / 04** counter stays in the header.
 - **API:** the same as `property-card.html`, plus `people`.
+
+## Coin Sprint — `coin-sprint-widget.html` `coin-sprint-v2-widget.html`
+
+A 3D coin with an icon in the middle that turns slowly
+
+- **Coin:** background, size, thickness (still scales with size), speed, number of gold and blue coins, row or orbit layout, and row spacing.
+- **Camera:**
+  - Spin style: smooth, flip with a pause, wobble, or look at the pointer.
+  - Tilt.
+  - Bob on/off, with height and speed.
+  - Ground shadow, which shrinks as the coin rises.
+- **Collect effect:**
+  - Click a coin to collect it. Animation: spin and pop, or fly to the counter (it flies toward the panel), with duration and 5 easing curves.
+  - Particle burst with count, spread and color (auto picks the color from rarity), plus “+value” text.
+  - Respawn after a delay you set.
+  - Buttons: Collect one, Collect all, Respawn all.
+  - Live collected and score counters, with a Reset counter button.
+- **Shine & glow:** glow on/off with strength and pulse speed, how often the sparkle appears, and brightness, contrast and saturation.
+- **Coin types:** rarity (common, rare or epic) and value for each coin. Rarity also changes glow strength, spin speed and particle color. There’s an optional value label above each coin, and the back face can show the same icon, the value, or a “?”.
+- **Avatar link (pointer):**
+  - Magnet, with radius and pull strength, plus collect-on-touch.
+  - Orbit radius and speed. Coins circle the screen centre or the pointer, and the ones at the back get smaller.
+  - Flip on hover, to show the back face.
+- **Pixel style:**
+  - Pixelate filter with a pixel-size setting.
+  - Stepped spin, which turns the coin in 4–24 fixed angles like your reference sheets.
+- **Presets & export:**
+  - 8 presets: Default, Ground coin, Floating pickup, HUD icon, Orbit bonus, Magnet pickups, Pixel retro, Epic loot.
+  - Copy settings or import them as JSON.
+  - Save and load your own preset (kept in this browser only).
+  - Reset everything.

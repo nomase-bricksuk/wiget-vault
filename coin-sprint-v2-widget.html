@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coins</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    background: #0f1720;
+    font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", sans-serif;
+    user-select: none;
+  }
+  #stage { position: fixed; inset: 0; }
+  #pane {
+    position: fixed; top: 8px; right: 8px; width: 290px;
+    max-height: calc(100vh - 16px); overflow-y: auto; z-index: 1000;
+    border-radius: 6px;
+  }
+  .hint {
+    position: fixed; left: 12px; bottom: 10px; font-size: 11px; color: rgba(160,175,190,.7);
+    pointer-events: none;
+  }
+
+  /* ---------- coin ---------- */
+  .coin {
+    position: absolute; left: 0; top: 0;
+    width: var(--s); height: var(--s);
+    will-change: transform;
+  }
+  .coin.clickable { cursor: pointer; }
+  .coin-shadow {
+    position: absolute; left: 50%; top: calc(var(--s) * 1.18);
+    width: calc(var(--s) * .9); height: calc(var(--s) * .22);
+    margin-left: calc(var(--s) * -.45);
+    border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(0,0,0,.5), transparent 70%);
+    pointer-events: none;
+  }
+  .coin-glow {
+    position: absolute; left: 50%; top: 50%;
+    width: calc(var(--s) * 2.4); height: calc(var(--s) * 2.4);
+    margin: calc(var(--s) * -1.2) 0 0 calc(var(--s) * -1.2);
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--glow) 0%, transparent 62%);
+    pointer-events: none;
+  }
+  .coin-bob, .coin-scale, .coin-persp { position: absolute; inset: 0; }
+  .coin-persp { perspective: calc(var(--s) * 6); }
+  .coin-body { position: absolute; inset: 0; transform-style: preserve-3d; }
+  .coin-layer {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: linear-gradient(to bottom,
+      var(--edge-dark) 0%, var(--edge) 25%, var(--light) 48%, var(--edge) 72%, var(--edge-dark) 100%);
+    filter: brightness(var(--edge-bright, 1));
+  }
+  .coin-face {
+    position: absolute; inset: 0; border-radius: 50%;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    overflow: hidden;
+    background: radial-gradient(circle at 32% 28%, var(--light) 0%, var(--mid) 50%, var(--dark) 100%);
+  }
+  .coin-field {
+    position: absolute; inset: 13%; border-radius: 50%;
+    background: radial-gradient(circle at 62% 68%, var(--light) 0%, var(--mid) 60%, var(--dark) 130%);
+    box-shadow:
+      inset calc(var(--s) * .03) calc(var(--s) * .035) calc(var(--s) * .04) rgba(0,0,0,.3),
+      inset calc(var(--s) * -.02) calc(var(--s) * -.02) calc(var(--s) * .03) rgba(255,255,255,.35);
+    display: grid; place-items: center;
+  }
+  .coin-icon {
+    width: 60%; height: 60%; display: grid; place-items: center;
+    color: var(--icon);
+    filter: drop-shadow(0 calc(var(--s) * .025) 0 rgba(255,255,255,.45));
+  }
+  .coin-icon svg { display: block; width: 100%; height: 100%; fill: currentColor; }
+  .coin-icon b { font-size: calc(var(--s) * .3); font-weight: 900; line-height: 1; letter-spacing: -.03em; }
+  .coin-icon b.q { font-size: calc(var(--s) * .45); }
+  .coin-shade { position: absolute; inset: 0; border-radius: 50%; background: #000; opacity: 0; pointer-events: none; }
+  .coin-shine {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.7) 48%, transparent 60%);
+    background-size: 320% 100%; mix-blend-mode: soft-light; pointer-events: none;
+  }
+  .coin-sparkle {
+    position: absolute; width: calc(var(--s) * .5); height: calc(var(--s) * .5);
+    margin: calc(var(--s) * -.25) 0 0 calc(var(--s) * -.25);
+    opacity: 0; pointer-events: none;
+  }
+  .coin-sparkle::before, .coin-sparkle::after {
+    content: ""; position: absolute; left: 50%; top: 50%; background: #fff;
+    border-radius: 50%; transform: translate(-50%, -50%);
+    box-shadow: 0 0 calc(var(--s) * .08) #fff;
+  }
+  .coin-sparkle::before { width: 100%; height: 12%; }
+  .coin-sparkle::after  { width: 12%; height: 100%; }
+  .coin-label {
+    position: absolute; left: 50%; bottom: calc(100% + var(--s) * .25);
+    transform: translateX(-50%);
+    font-weight: 800; font-size: max(10px, calc(var(--s) * .45)); white-space: nowrap;
+    color: var(--fx); text-shadow: 0 1px 0 rgba(0,0,0,.5);
+    pointer-events: none;
+  }
+
+  /* colour themes */
+  .coin--gold { --light:#ffe680; --mid:#f7bb1e; --dark:#c27c04; --edge:#d99410; --edge-dark:#935800; --icon:#a86502; }
+  .coin--blue { --light:#a6d0ff; --mid:#2f80ef; --dark:#10408f; --edge:#2263c6; --edge-dark:#0a2b66; --icon:#0d3a85; }
+
+  /* fx */
+  .fx-particle {
+    position: absolute; left: 0; top: 0; border-radius: 50%; pointer-events: none;
+    will-change: transform, opacity;
+  }
+  .fx-particle.square { border-radius: 0; }
+  .fx-text {
+    position: absolute; left: 0; top: 0; font-weight: 900; pointer-events: none; white-space: nowrap;
+    text-shadow: 0 1px 0 rgba(0,0,0,.55), 0 0 6px rgba(0,0,0,.25);
+    will-change: transform, opacity;
+  }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="pane"></div>
+<div class="hint">Click a coin to collect it · the mouse pointer stands in for the avatar (magnet, orbit, look-at)</div>
+
+<!-- pixelate filter (attributes updated from JS) -->
+<svg width="0" height="0" style="position:absolute">
+  <filter id="pixelate" x="-50%" y="-50%" width="200%" height="200%">
+    <feFlood x="1" y="1" width="1" height="1" id="pxFlood"/>
+    <feComposite width="2" height="2" id="pxComp"/>
+    <feTile result="a"/>
+    <feComposite in="SourceGraphic" in2="a" operator="in"/>
+    <feMorphology operator="dilate" radius="1" id="pxMorph"/>
+  </filter>
+</svg>
+
+<script type="module">
+import { Pane } from 'https://cdn.jsdelivr.net/npm/tweakpane@4.0.5/dist/tweakpane.min.js';
+
+/* =========================================================
+   CONFIG
+   ========================================================= */
+const ICONS = {
+  star:   '<svg viewBox="0 0 24 24"><path d="M12 1.8l3.1 6.6 7.1.8-5.3 4.9 1.4 7.1L12 17.6l-6.3 3.6 1.4-7.1L1.8 9.2l7.1-.8z"/></svg>',
+  camera: '<svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M8.3 3.5h7.4l1.6 2.8H21a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2h3.7zM12 8.2a5.3 5.3 0 1 0 0 10.6 5.3 5.3 0 0 0 0-10.6zm0 2.6a2.7 2.7 0 1 1 0 5.4 2.7 2.7 0 0 1 0-5.4zM19.4 8.4a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2z"/></svg>'
+};
+const TYPES = {
+  gold: { icon: 'star',   light: '#ffe680', mid: '#f7bb1e' },
+  blue: { icon: 'camera', light: '#a6d0ff', mid: '#2f80ef' }
+};
+const RARITY = {
+  common: { glow: 0.6, speed: 1.0, particles: 1.0, color: null },
+  rare:   { glow: 1.1, speed: 1.3, particles: 1.5, color: '#7fe3ff' },
+  epic:   { glow: 1.7, speed: 1.7, particles: 2.2, color: '#ff7cf5' }
+};
+
+const DEFAULTS = {
+  // coin
+  background: '#0f1720', size: 20, thickness: 4, speed: 70,
+  goldCount: 1, blueCount: 1, layout: 'row', spacing: 1.8,
+  // motion
+  spinStyle: 'smooth', flipPause: 1.5, wobbleAmp: 35, tilt: 0,
+  bob: false, bobHeight: 0.3, bobSpeed: 1.2, shadow: false,
+  // collect
+  collectOnClick: true, collectMode: 'pop', collectDuration: 0.6, easing: 'easeInBack',
+  burst: true, particles: 12, particleAuto: true, particleColor: '#ffffff', particleSpread: 2,
+  floatText: true, respawn: true, respawnDelay: 1.2,
+  // shine
+  glow: false, glowStrength: 0.7, glowPulse: 1.5,
+  sparkle: true, sparkleEvery: 2.5,
+  brightness: 1, contrast: 1, saturation: 1,
+  // types
+  goldRarity: 'common', goldValue: 10, blueRarity: 'rare', blueValue: 50,
+  valueLabel: false, backFace: 'same',
+  // pointer link (avatar stand-in)
+  magnet: false, magnetRadius: 5, magnetStrength: 6, magnetCollect: true,
+  orbitRadius: 3, orbitSpeed: 60, orbitCenter: 'center', lookAtRange: 70, hoverFlip: false,
+  // pixel
+  pixelate: false, pixelSize: 2, stepped: false, frames: 8,
+  // export
+  preset: 'default', json: ''
+};
+
+const PRESETS = {
+  default: {},
+  ground: { bob: false, spinStyle: 'wobble', wobbleAmp: 30, tilt: 12, shadow: true, glow: false, sparkle: true },
+  pickup: { bob: true, bobHeight: 0.35, shadow: true, glow: true, glowStrength: 0.6, sparkle: true, valueLabel: false },
+  hud: { spinStyle: 'flip', flipPause: 2.5, bob: false, shadow: false, glow: false, sparkle: true, sparkleEvery: 3, size: 24, thickness: 5 },
+  orbit: { layout: 'orbit', goldCount: 5, blueCount: 1, orbitRadius: 3.2, orbitSpeed: 70, glow: true, glowStrength: 0.8, bob: false, shadow: false, tilt: 10 },
+  magnet: { goldCount: 6, blueCount: 2, spacing: 2.2, magnet: true, bob: true, shadow: true, glow: true },
+  retro: { pixelate: true, pixelSize: 2, stepped: true, frames: 8, glow: false, size: 24, thickness: 5, bob: true, shadow: true },
+  epic: { blueRarity: 'epic', goldRarity: 'rare', glow: true, glowStrength: 1, bob: true, shadow: true, valueLabel: true, particles: 18 }
+};
+
+const P = structuredClone(DEFAULTS);
+const S = { collected: 0, score: 0 };   // stats (not exported)
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+const stage = document.getElementById('stage');
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const C1 = 1.70158;
+const EASE = {
+  linear: k => k,
+  easeOutCubic: k => 1 - Math.pow(1 - k, 3),
+  easeInOutCubic: k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2,
+  easeInBack: k => (C1 + 1) * k * k * k - C1 * k * k,
+  easeOutBack: k => 1 + (C1 + 1) * Math.pow(k - 1, 3) + C1 * Math.pow(k - 1, 2)
+};
+const thickPx = () => Math.max(1, Math.round(P.thickness));
+const rarityOf = c => RARITY[c.type === 'gold' ? P.goldRarity : P.blueRarity];
+const valueOf = c => c.type === 'gold' ? P.goldValue : P.blueValue;
+const fxColorOf = c => (P.particleAuto ? (rarityOf(c).color || TYPES[c.type].light) : P.particleColor);
+
+const pointer = { x: 0, y: 0, active: false };
+addEventListener('pointermove', e => { pointer.x = e.clientX; pointer.y = e.clientY; pointer.active = !e.target.closest('#pane'); });
+document.addEventListener('pointerleave', () => pointer.active = false);
+
+/* =========================================================
+   COINS
+   ========================================================= */
+let coins = [];
+
+function faceContent(c, back) {
+  if (back && P.backFace === 'value') return `<b>${valueOf(c)}</b>`;
+  if (back && P.backFace === 'mystery') return `<b class="q">?</b>`;
+  return ICONS[TYPES[c.type].icon];
+}
+
+function buildCoin(c) {
+  const s = P.size, t = thickPx();
+  const el = c.el || document.createElement('div');
+  el.className = `coin coin--${c.type}`;
+  el.style.setProperty('--s', s + 'px');
+  let layers = '';
+  for (let i = 0; i < t; i++) {
+    layers += `<div class="coin-layer" style="transform:translateZ(${(-t / 2 + i + .5).toFixed(2)}px)"></div>`;
+  }
+  const face = (tf, back) => `<div class="coin-face" style="transform:${tf}">
+      <div class="coin-field"><div class="coin-icon">${faceContent(c, back)}</div></div>
+      <div class="coin-shade"></div><div class="coin-shine"></div></div>`;
+  el.innerHTML = `
+    <div class="coin-shadow"></div>
+    <div class="coin-bob">
+      <div class="coin-glow"></div>
+      <div class="coin-scale">
+        <div class="coin-persp"><div class="coin-body">
+          ${layers}
+          ${face(`translateZ(${t / 2}px)`, false)}
+          ${face(`rotateY(180deg) translateZ(${t / 2}px)`, true)}
+        </div></div>
+        <div class="coin-sparkle"></div>
+      </div>
+      <div class="coin-label"></div>
+    </div>`;
+  const q = sel => el.querySelector(sel);
+  const faces = el.querySelectorAll('.coin-face');
+  Object.assign(c, {
+    el,
+    shadow: q('.coin-shadow'), bob: q('.coin-bob'), glowEl: q('.coin-glow'),
+    scaler: q('.coin-scale'), persp: q('.coin-persp'), body: q('.coin-body'),
+    sparkleEl: q('.coin-sparkle'), label: q('.coin-label'),
+    front: { shade: faces[0].querySelector('.coin-shade'), shine: faces[0].querySelector('.coin-shine') },
+    back:  { shade: faces[1].querySelector('.coin-shade'), shine: faces[1].querySelector('.coin-shine') }
+  });
+  if (!el.isConnected) {
+    stage.appendChild(el);
+    el.addEventListener('pointerdown', e => { if (P.collectOnClick) { e.stopPropagation(); collect(c); } });
+    el.addEventListener('pointerenter', () => c.hover = true);
+    el.addEventListener('pointerleave', () => c.hover = false);
+  }
+  applyCoinStatic(c);
+}
+
+function applyCoinStatic(c) {
+  const r = rarityOf(c);
+  c.el.classList.toggle('clickable', P.collectOnClick);
+  c.el.style.setProperty('--glow', r.color || TYPES[c.type].mid);
+  c.el.style.setProperty('--fx', fxColorOf(c));
+  c.shadow.style.display = P.shadow ? '' : 'none';
+  c.glowEl.style.display = P.glow ? '' : 'none';
+  c.label.style.display = P.valueLabel ? '' : 'none';
+  c.label.textContent = '+' + valueOf(c);
+  c.persp.style.filter = `brightness(${P.brightness}) contrast(${P.contrast}) saturate(${P.saturation})`;
+  c.scaler.style.filter = P.pixelate ? 'url(#pixelate)' : '';
+}
+
+function rebuildAll() {
+  const want = [];
+  for (let i = 0; i < P.goldCount; i++) want.push('gold');
+  for (let i = 0; i < P.blueCount; i++) want.push('blue');
+  // interleave blues among golds for nicer rows
+  const ordered = [];
+  const golds = want.filter(t => t === 'gold'), blues = want.filter(t => t === 'blue');
+  const step = blues.length ? Math.max(1, Math.round((golds.length + 1) / (blues.length + 1))) : 1;
+  let g = 0;
+  while (golds.length || blues.length) {
+    for (let k = 0; k < step && golds.length; k++) { ordered.push(golds.shift()); g++; }
+    if (blues.length) ordered.push(blues.shift());
+  }
+  // reuse existing coin objects where possible
+  const old = coins;
+  coins = ordered.map((type, i) => {
+    const prev = old[i];
+    const c = prev && prev.type === type ? prev : {
+      type, angle: i * 47, phase: Math.random() * Math.PI * 2,
+      state: 'idle', t: 0, x: innerWidth / 2, y: innerHeight / 2,
+      flipClock: Math.random() * P.flipPause, sparkleClock: Math.random() * P.sparkleEvery,
+      sparkleT: -1, hoverAngle: 0, hover: false
+    };
+    if (prev && prev !== c) prev.el.remove();
+    c.index = i;
+    buildCoin(c);
+    return c;
+  });
+  old.slice(ordered.length).forEach(c => c.el && c.el.remove());
+}
+
+function applyAllStatic() {
+  document.body.style.background = P.background;
+  coins.forEach(applyCoinStatic);
+  updatePixelFilter();
+}
+
+function updatePixelFilter() {
+  const px = Math.max(1, Math.round(P.pixelSize));
+  const half = Math.max(0.5, px / 2);
+  document.getElementById('pxFlood').setAttribute('x', Math.floor(half - 0.5));
+  document.getElementById('pxFlood').setAttribute('y', Math.floor(half - 0.5));
+  document.getElementById('pxComp').setAttribute('width', px);
+  document.getElementById('pxComp').setAttribute('height', px);
+  document.getElementById('pxMorph').setAttribute('radius', half);
+}
+
+/* =========================================================
+   COLLECT + FX
+   ========================================================= */
+const particles = [];
+const texts = [];
+
+function spawnBurst(c, x, y) {
+  if (!P.burst) return;
+  const r = rarityOf(c);
+  const n = Math.round(P.particles * r.particles);
+  const color = fxColorOf(c);
+  const ps = Math.max(2, P.size * 0.14);
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement('div');
+    el.className = 'fx-particle' + (P.pixelate ? ' square' : '');
+    const sz = ps * (0.6 + Math.random() * 0.8);
+    el.style.width = el.style.height = sz + 'px';
+    el.style.background = color;
+    el.style.boxShadow = P.pixelate ? 'none' : `0 0 ${sz}px ${color}`;
+    stage.appendChild(el);
+    const a = Math.random() * Math.PI * 2;
+    const sp = P.particleSpread * P.size * (1.6 + Math.random() * 1.6);
+    particles.push({ el, x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - P.size * 1.2, life: 0, max: 0.5 + Math.random() * 0.35, sz });
+  }
+}
+
+function spawnText(c, x, y) {
+  if (!P.floatText) return;
+  const el = document.createElement('div');
+  el.className = 'fx-text';
+  el.textContent = '+' + valueOf(c);
+  el.style.color = fxColorOf(c);
+  el.style.fontSize = Math.max(11, P.size * 0.6) + 'px';
+  stage.appendChild(el);
+  texts.push({ el, x, y: y - P.size * 0.6, life: 0, max: 0.9 });
+}
+
+function collect(c) {
+  if (c.state !== 'idle') return;
+  c.state = 'collecting';
+  c.t = 0;
+  c.fromX = c.x; c.fromY = c.y;
+  const paneRect = document.getElementById('pane').getBoundingClientRect();
+  c.toX = paneRect.left - P.size; c.toY = Math.min(paneRect.bottom, 60);
+  c.spinBoost = 0;
+  spawnBurst(c, c.x, c.y);
+  spawnText(c, c.x, c.y);
+}
+
+function finishCollect(c) {
+  S.collected += 1;
+  S.score += valueOf(c);
+  c.state = 'hidden';
+  c.t = 0;
+  c.el.style.visibility = 'hidden';
+}
+
+function respawn(c) {
+  c.state = 'spawning';
+  c.t = 0;
+  c.el.style.visibility = '';
+}
+
+/* =========================================================
+   LAYOUT
+   ========================================================= */
+let orbitClock = 0;
+let orbitCX = innerWidth / 2, orbitCY = innerHeight / 2;
+
+function homeOf(c, n) {
+  const cx = (innerWidth - 300) / 2 + 0, cy = innerHeight / 2;
+  const centerX = innerWidth > 700 ? cx : innerWidth / 2;
+  if (P.layout === 'orbit') {
+    const R = P.orbitRadius * P.size;
+    const a = orbitClock + (c.index / n) * Math.PI * 2;
+    return { x: orbitCX + Math.cos(a) * R, y: orbitCY + Math.sin(a) * R * 0.38, depth: Math.sin(a) };
+  }
+  const gap = P.size * P.spacing;
+  return { x: centerX + (c.index - (n - 1) / 2) * gap, y: cy, depth: 0 };
+}
+
+/* =========================================================
+   RENDER LOOP
+   ========================================================= */
+const L = (() => { const v = [-0.45, 0.9]; const m = Math.hypot(...v); return v.map(x => x / m); })();
+
+function shadeFace(f, nx, nz, a) {
+  const lit = Math.max(0, nx * L[0] + nz * L[1]);
+  f.shade.style.opacity = (0.55 * (1 - lit)).toFixed(3);
+  const w = ((a % 360) + 540) % 360 - 180;
+  f.shine.style.backgroundPosition = `${(50 + w * 1.1).toFixed(1)}% 0`;
+}
+
+let prev = performance.now(), time = 0;
+function tick(now) {
+  const dt = Math.min(0.05, (now - prev) / 1000);
+  prev = now; time += dt;
+  const n = coins.length;
+
+  // orbit centre
+  orbitClock += (P.orbitSpeed * Math.PI / 180) * dt;
+  const wantCX = P.orbitCenter === 'pointer' && pointer.active ? pointer.x : (innerWidth > 700 ? (innerWidth - 300) / 2 : innerWidth / 2);
+  const wantCY = P.orbitCenter === 'pointer' && pointer.active ? pointer.y : innerHeight / 2;
+  orbitCX = lerp(orbitCX, wantCX, 1 - Math.pow(0.002, dt));
+  orbitCY = lerp(orbitCY, wantCY, 1 - Math.pow(0.002, dt));
+
+  for (const c of coins) {
+    const r = rarityOf(c);
+    const home = homeOf(c, n);
+    let scale = 1, opacity = 1, extraSpin = 0, lift = 0;
+
+    /* ---- position ---- */
+    if (c.state === 'idle' || c.state === 'spawning') {
+      if (P.magnet && pointer.active) {
+        const dx = pointer.x - c.x, dy = pointer.y - c.y, d = Math.hypot(dx, dy);
+        const R = P.magnetRadius * P.size;
+        if (d < R) {
+          const pull = clamp(P.magnetStrength * dt * (1.2 - d / R), 0, 1);
+          c.x += dx * pull; c.y += dy * pull;
+          if (P.magnetCollect && d < P.size * 0.6 && c.state === 'idle') collect(c);
+        } else {
+          c.x = lerp(c.x, home.x, 1 - Math.pow(0.001, dt));
+          c.y = lerp(c.y, home.y, 1 - Math.pow(0.001, dt));
+        }
+      } else if (P.layout === 'orbit') {
+        c.x = home.x; c.y = home.y;
+      } else {
+        c.x = lerp(c.x, home.x, 1 - Math.pow(0.0005, dt));
+        c.y = lerp(c.y, home.y, 1 - Math.pow(0.0005, dt));
+      }
+    }
+
+    /* ---- spin ---- */
+    if (c.state === 'idle' || c.state === 'spawning') {
+      const sp = P.speed * r.speed;
+      if (P.hoverFlip && c.hover) {
+        // ease to show the back face
+        const target = Math.round((c.angle - 180) / 360) * 360 + 180;
+        c.angle = lerp(c.angle, target, 1 - Math.pow(0.0001, dt));
+      } else if (P.spinStyle === 'smooth') {
+        c.angle += sp * dt;
+      } else if (P.spinStyle === 'flip') {
+        c.flipClock += dt;
+        const flipDur = clamp(360 / Math.max(sp * 4, 1), 0.25, 2.5);
+        const cycle = P.flipPause + flipDur;
+        if (c.flipClock >= cycle) { c.flipClock -= cycle; c.flipBase = (c.flipBase || 0) + 360; }
+        const k = clamp((c.flipClock - P.flipPause) / flipDur, 0, 1);
+        c.angle = (c.flipBase || 0) + 360 * EASE.easeInOutCubic(k);
+      } else if (P.spinStyle === 'wobble') {
+        c.angle = Math.sin(time * (sp / 40) + c.phase) * P.wobbleAmp;
+      } else if (P.spinStyle === 'lookat') {
+        let target = 0;
+        if (pointer.active) target = clamp((pointer.x - c.x) / (P.size * 6), -1, 1) * P.lookAtRange;
+        c.angle = lerp(c.angle, target, 1 - Math.pow(0.002, dt));
+      }
+    }
+
+    /* ---- bob ---- */
+    if (P.bob && c.state !== 'collecting') {
+      lift = (0.5 + 0.5 * Math.sin(time * P.bobSpeed * Math.PI * 2 / 1.6 + c.phase)) * P.bobHeight * P.size;
+    }
+
+    /* ---- state animations ---- */
+    let drawX = c.x, drawY = c.y;
+    if (c.state === 'collecting') {
+      c.t += dt;
+      const k = clamp(c.t / P.collectDuration, 0, 1);
+      const e = EASE[P.easing](k);
+      if (P.collectMode === 'pop') {
+        scale = Math.max(0, (1 - e) * (1 + 0.6 * Math.sin(Math.PI * Math.min(1, k * 1.4))));
+        drawY = c.fromY - P.size * 1.2 * EASE.easeOutCubic(k);
+        extraSpin = 900 * k;
+        opacity = 1 - Math.pow(k, 4);
+      } else {
+        const ee = clamp(e, -0.2, 1.2);
+        const cx = lerp(c.fromX, c.toX, 0.2), cy = Math.min(c.fromY, c.toY) - P.size * 5;
+        const u = 1 - ee;
+        drawX = u * u * c.fromX + 2 * u * ee * cx + ee * ee * c.toX;
+        drawY = u * u * c.fromY + 2 * u * ee * cy + ee * ee * c.toY;
+        scale = 1 - 0.55 * k;
+        extraSpin = 1080 * k;
+        opacity = 1 - clamp((k - 0.85) / 0.15, 0, 1);
+      }
+      if (k >= 1) finishCollect(c);
+    } else if (c.state === 'hidden') {
+      c.t += dt;
+      if (P.respawn && c.t >= P.respawnDelay) { c.x = home.x; c.y = home.y; respawn(c); }
+      continue;
+    } else if (c.state === 'spawning') {
+      c.t += dt;
+      const k = clamp(c.t / 0.35, 0, 1);
+      scale = Math.max(0, EASE.easeOutBack(k));
+      if (k >= 1) c.state = 'idle';
+    }
+
+    /* ---- sparkle ---- */
+    if (P.sparkle) {
+      c.sparkleClock += dt;
+      if (c.sparkleT < 0 && c.sparkleClock >= c.sparkleNext) {
+        c.sparkleT = 0; c.sparkleClock = 0;
+        const a = -Math.PI / 4 + (Math.random() - 0.5) * 1.2;
+        c.sparkleEl.style.left = (50 + Math.cos(a) * 38) + '%';
+        c.sparkleEl.style.top = (50 + Math.sin(a) * 38) + '%';
+      }
+      if (!c.sparkleNext || c.sparkleT === 0) c.sparkleNext = P.sparkleEvery * (0.6 + Math.random() * 0.8);
+      if (c.sparkleT >= 0) {
+        c.sparkleT += dt;
+        const k = c.sparkleT / 0.45;
+        const v = Math.sin(Math.PI * clamp(k, 0, 1));
+        c.sparkleEl.style.opacity = v.toFixed(2);
+        c.sparkleEl.style.transform = `scale(${v.toFixed(2)}) rotate(${(k * 90).toFixed(0)}deg)`;
+        if (k >= 1) { c.sparkleT = -1; c.sparkleEl.style.opacity = 0; }
+      }
+    } else {
+      c.sparkleEl.style.opacity = 0;
+    }
+
+    /* ---- glow ---- */
+    if (P.glow) {
+      const pulse = P.glowPulse > 0 ? 0.65 + 0.35 * Math.sin(time * P.glowPulse * Math.PI + c.phase) : 1;
+      c.glowEl.style.opacity = clamp(P.glowStrength * r.glow * pulse * 0.7, 0, 1).toFixed(3);
+    }
+
+    /* ---- draw ---- */
+    let ang = c.angle + extraSpin;
+    if (P.stepped) { const st = 360 / P.frames; ang = Math.round(ang / st) * st; }
+    const rad = ang * Math.PI / 180, sx = Math.sin(rad), cz = Math.cos(rad);
+
+    const depthScale = P.layout === 'orbit' ? 0.82 + 0.18 * (home.depth + 1) / 2 : 1;
+    const half = P.size / 2;
+    c.el.style.transform = `translate(${(drawX - half).toFixed(1)}px, ${(drawY - half).toFixed(1)}px) scale(${depthScale.toFixed(3)})`;
+    c.el.style.zIndex = P.layout === 'orbit' ? Math.round(100 + home.depth * 50) : 100;
+    c.el.style.opacity = opacity.toFixed(3);
+    c.bob.style.transform = `translateY(${(-lift).toFixed(2)}px)`;
+    c.scaler.style.transform = `scale(${scale.toFixed(3)})`;
+    c.body.style.transform = `rotateX(${P.tilt}deg) rotateY(${ang.toFixed(2)}deg)`;
+    c.body.style.setProperty('--edge-bright', (0.75 + 0.35 * Math.abs(sx)).toFixed(3));
+    shadeFace(c.front, sx, cz, ang);
+    shadeFace(c.back, -sx, -cz, ang + 180);
+
+    if (P.shadow) {
+      const liftK = P.bobHeight > 0 ? lift / (P.bobHeight * P.size + 0.001) : 0;
+      const w = Math.max(Math.abs(cz), thickPx() / P.size + 0.1);
+      c.shadow.style.transform = `scale(${(w * (1 - 0.3 * liftK) * scale).toFixed(3)}, ${(1 - 0.2 * liftK).toFixed(3)})`;
+      c.shadow.style.opacity = ((1 - 0.45 * liftK) * opacity).toFixed(3);
+    }
+  }
+
+  /* ---- particles ---- */
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.life += dt;
+    p.vy += P.size * 6 * dt;               // gravity
+    p.vx *= Math.pow(0.15, dt); p.vy *= Math.pow(0.4, dt);
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    const k = p.life / p.max;
+    p.el.style.transform = `translate(${(p.x - p.sz / 2).toFixed(1)}px, ${(p.y - p.sz / 2).toFixed(1)}px) scale(${(1 - k).toFixed(2)})`;
+    p.el.style.opacity = (1 - k).toFixed(2);
+    if (k >= 1) { p.el.remove(); particles.splice(i, 1); }
+  }
+  for (let i = texts.length - 1; i >= 0; i--) {
+    const t = texts[i];
+    t.life += dt;
+    const k = t.life / t.max;
+    const y = t.y - P.size * 1.6 * EASE.easeOutCubic(k);
+    t.el.style.transform = `translate(-50%, 0) translate(${t.x.toFixed(1)}px, ${y.toFixed(1)}px) scale(${(0.8 + 0.4 * EASE.easeOutBack(Math.min(1, k * 3))).toFixed(2)})`;
+    t.el.style.opacity = (1 - Math.max(0, (k - 0.6) / 0.4)).toFixed(2);
+    if (k >= 1) { t.el.remove(); texts.splice(i, 1); }
+  }
+
+  requestAnimationFrame(tick);
+}
+
+/* =========================================================
+   TWEAKPANE
+   ========================================================= */
+const pane = new Pane({ container: document.getElementById('pane'), title: 'Coin settings' });
+let suspend = false;
+const REBUILD = new Set(['size', 'thickness', 'goldCount', 'blueCount', 'backFace', 'goldValue', 'blueValue']);
+
+function bind(folder, key, opts = {}) {
+  const b = folder.addBinding(P, key, opts);
+  b.on('change', () => {
+    if (suspend) return;
+    if (REBUILD.has(key)) rebuildAll();
+    applyAllStatic();
+  });
+  return b;
+}
+const list = obj => ({ options: obj });
+
+/* --- Coin --- */
+const fCoin = pane.addFolder({ title: 'Coin' });
+bind(fCoin, 'background', { label: 'background' });
+let prevSize = P.size, thickB;
+fCoin.addBinding(P, 'size', { label: 'size (px)', min: 8, max: 160, step: 1 }).on('change', e => {
+  if (suspend) return;
+  P.thickness = Math.max(1, Math.round(P.thickness * e.value / prevSize));
+  prevSize = e.value;
+  suspend = true; thickB.refresh(); suspend = false;
+  rebuildAll(); applyAllStatic();
+});
+thickB = bind(fCoin, 'thickness', { label: 'thickness (px)', min: 1, max: 60, step: 1 });
+bind(fCoin, 'speed', { label: 'speed (°/s)', min: 0, max: 360, step: 1 });
+bind(fCoin, 'goldCount', { label: 'gold coins', min: 0, max: 16, step: 1 });
+bind(fCoin, 'blueCount', { label: 'blue coins', min: 0, max: 16, step: 1 });
+bind(fCoin, 'layout', list({ Row: 'row', Orbit: 'orbit' }));
+bind(fCoin, 'spacing', { label: 'row spacing', min: 1, max: 5, step: 0.1 });
+
+/* --- Motion --- */
+const fMotion = pane.addFolder({ title: 'Motion', expanded: false });
+bind(fMotion, 'spinStyle', { label: 'spin style', ...list({ Smooth: 'smooth', 'Flip + pause': 'flip', Wobble: 'wobble', 'Look at pointer': 'lookat' }) });
+bind(fMotion, 'flipPause', { label: 'flip pause (s)', min: 0, max: 6, step: 0.1 });
+bind(fMotion, 'wobbleAmp', { label: 'wobble (°)', min: 5, max: 90, step: 1 });
+bind(fMotion, 'lookAtRange', { label: 'look-at range (°)', min: 10, max: 90, step: 1 });
+bind(fMotion, 'tilt', { label: 'tilt (°)', min: -60, max: 60, step: 1 });
+fMotion.addBlade({ view: 'separator' });
+bind(fMotion, 'bob', { label: 'bob' });
+bind(fMotion, 'bobHeight', { label: 'bob height', min: 0, max: 1.5, step: 0.01 });
+bind(fMotion, 'bobSpeed', { label: 'bob speed', min: 0.1, max: 4, step: 0.05 });
+bind(fMotion, 'shadow', { label: 'ground shadow' });
+
+/* --- Collect --- */
+const fCollect = pane.addFolder({ title: 'Collect effect', expanded: false });
+bind(fCollect, 'collectOnClick', { label: 'click to collect' });
+bind(fCollect, 'collectMode', { label: 'animation', ...list({ 'Spin + pop': 'pop', 'Fly to counter': 'fly' }) });
+bind(fCollect, 'collectDuration', { label: 'duration (s)', min: 0.15, max: 2, step: 0.05 });
+bind(fCollect, 'easing', list({ Linear: 'linear', 'Ease out': 'easeOutCubic', 'Ease in-out': 'easeInOutCubic', 'Back in': 'easeInBack', 'Back out': 'easeOutBack' }));
+fCollect.addBlade({ view: 'separator' });
+bind(fCollect, 'burst', { label: 'particle burst' });
+bind(fCollect, 'particles', { label: 'particle count', min: 0, max: 50, step: 1 });
+bind(fCollect, 'particleSpread', { label: 'spread', min: 0.3, max: 5, step: 0.1 });
+bind(fCollect, 'particleAuto', { label: 'auto colour' });
+bind(fCollect, 'particleColor', { label: 'colour' });
+bind(fCollect, 'floatText', { label: '+value text' });
+fCollect.addBlade({ view: 'separator' });
+bind(fCollect, 'respawn', { label: 'respawn' });
+bind(fCollect, 'respawnDelay', { label: 'respawn after (s)', min: 0.2, max: 6, step: 0.1 });
+fCollect.addButton({ title: 'Collect one' }).on('click', () => {
+  const idle = coins.filter(c => c.state === 'idle');
+  if (idle.length) collect(idle[Math.floor(Math.random() * idle.length)]);
+});
+fCollect.addButton({ title: 'Collect all' }).on('click', () => {
+  coins.filter(c => c.state === 'idle').forEach((c, i) => setTimeout(() => collect(c), i * 70));
+});
+fCollect.addButton({ title: 'Respawn all' }).on('click', () => coins.forEach(c => { if (c.state === 'hidden') respawn(c); }));
+fCollect.addBinding(S, 'collected', { readonly: true, format: v => v.toFixed(0) });
+fCollect.addBinding(S, 'score', { readonly: true, format: v => v.toFixed(0) });
+fCollect.addButton({ title: 'Reset counter' }).on('click', () => { S.collected = 0; S.score = 0; });
+
+/* --- Shine & glow --- */
+const fShine = pane.addFolder({ title: 'Shine & glow', expanded: false });
+bind(fShine, 'glow', { label: 'glow' });
+bind(fShine, 'glowStrength', { label: 'glow strength', min: 0, max: 2, step: 0.01 });
+bind(fShine, 'glowPulse', { label: 'pulse speed', min: 0, max: 5, step: 0.05 });
+bind(fShine, 'sparkle', { label: 'sparkle' });
+bind(fShine, 'sparkleEvery', { label: 'sparkle every (s)', min: 0.3, max: 8, step: 0.1 });
+fShine.addBlade({ view: 'separator' });
+bind(fShine, 'brightness', { min: 0.5, max: 2, step: 0.01 });
+bind(fShine, 'contrast', { min: 0.5, max: 2, step: 0.01 });
+bind(fShine, 'saturation', { min: 0, max: 2.5, step: 0.01 });
+
+/* --- Types --- */
+const fTypes = pane.addFolder({ title: 'Coin types', expanded: false });
+const rar = list({ Common: 'common', Rare: 'rare', Epic: 'epic' });
+bind(fTypes, 'goldRarity', { label: 'gold rarity', ...rar });
+bind(fTypes, 'goldValue', { label: 'gold value', min: 1, max: 1000, step: 1 });
+bind(fTypes, 'blueRarity', { label: 'blue rarity', ...rar });
+bind(fTypes, 'blueValue', { label: 'blue value', min: 1, max: 1000, step: 1 });
+bind(fTypes, 'valueLabel', { label: 'show value label' });
+bind(fTypes, 'backFace', { label: 'back face', ...list({ 'Same icon': 'same', Value: 'value', 'Mystery ?': 'mystery' }) });
+
+/* --- Avatar link --- */
+const fLink = pane.addFolder({ title: 'Avatar link (pointer)', expanded: false });
+bind(fLink, 'magnet', { label: 'magnet' });
+bind(fLink, 'magnetRadius', { label: 'magnet radius', min: 1, max: 15, step: 0.1 });
+bind(fLink, 'magnetStrength', { label: 'magnet pull', min: 1, max: 20, step: 0.1 });
+bind(fLink, 'magnetCollect', { label: 'collect on touch' });
+fLink.addBlade({ view: 'separator' });
+bind(fLink, 'orbitRadius', { label: 'orbit radius', min: 1, max: 10, step: 0.1 });
+bind(fLink, 'orbitSpeed', { label: 'orbit speed (°/s)', min: -240, max: 240, step: 1 });
+bind(fLink, 'orbitCenter', { label: 'orbit centre', ...list({ 'Screen centre': 'center', Pointer: 'pointer' }) });
+fLink.addBlade({ view: 'separator' });
+bind(fLink, 'hoverFlip', { label: 'flip on hover' });
+
+/* --- Pixel --- */
+const fPixel = pane.addFolder({ title: 'Pixel style', expanded: false });
+bind(fPixel, 'pixelate', { label: 'pixelate' });
+bind(fPixel, 'pixelSize', { label: 'pixel size', min: 1, max: 8, step: 1 });
+bind(fPixel, 'stepped', { label: 'stepped spin' });
+bind(fPixel, 'frames', { label: 'frames', ...list({ 4: 4, 6: 6, 8: 8, 12: 12, 16: 16, 24: 24 }) });
+
+/* --- Export & presets --- */
+const fExport = pane.addFolder({ title: 'Presets & export', expanded: false });
+fExport.addBinding(P, 'preset', list({
+  Default: 'default', 'Ground coin': 'ground', 'Floating pickup': 'pickup', 'HUD icon': 'hud',
+  'Orbit bonus': 'orbit', 'Magnet pickups': 'magnet', 'Pixel retro': 'retro', 'Epic loot': 'epic'
+})).on('change', e => { if (!suspend) loadSettings({ ...PRESETS[e.value], preset: e.value }); });
+fExport.addButton({ title: 'Copy settings (JSON)' }).on('click', async () => {
+  P.json = exportJSON();
+  suspend = true; pane.refresh(); suspend = false;
+  try { await navigator.clipboard.writeText(P.json); flash('Copied to clipboard'); }
+  catch { flash('Copy the text field manually'); }
+});
+fExport.addBinding(P, 'json', { label: 'JSON' });
+fExport.addButton({ title: 'Import JSON' }).on('click', () => {
+  try { loadSettings(JSON.parse(P.json)); flash('Imported'); }
+  catch { flash('Invalid JSON'); }
+});
+fExport.addButton({ title: 'Save as my preset' }).on('click', () => {
+  try { localStorage.setItem('coin-preset', exportJSON()); flash('Saved in this browser'); }
+  catch { flash('Storage not available'); }
+});
+fExport.addButton({ title: 'Load my preset' }).on('click', () => {
+  try {
+    const v = localStorage.getItem('coin-preset');
+    if (v) { loadSettings(JSON.parse(v)); flash('Loaded'); } else flash('Nothing saved yet');
+  } catch { flash('Storage not available'); }
+});
+fExport.addButton({ title: 'Reset everything' }).on('click', () => loadSettings({}));
+const status = { msg: '' };
+fExport.addBinding(status, 'msg', { readonly: true, label: 'status' });
+let flashTimer;
+function flash(m) { status.msg = m; clearTimeout(flashTimer); flashTimer = setTimeout(() => status.msg = '', 2500); }
+
+function exportJSON() {
+  const out = {};
+  for (const k of Object.keys(DEFAULTS)) if (k !== 'json' && k !== 'preset') out[k] = P[k];
+  return JSON.stringify(out);
+}
+function loadSettings(obj) {
+  suspend = true;
+  const keepJson = P.json;
+  Object.assign(P, structuredClone(DEFAULTS));
+  for (const k of Object.keys(obj)) if (k in DEFAULTS) P[k] = obj[k];
+  P.json = keepJson;
+  prevSize = P.size;
+  pane.refresh();
+  suspend = false;
+  rebuildAll();
+  coins.forEach(c => { c.state = 'idle'; c.t = 0; c.el.style.visibility = ''; });
+  applyAllStatic();
+}
+
+/* =========================================================
+   START
+   ========================================================= */
+rebuildAll();
+applyAllStatic();
+coins.forEach(c => { const h = homeOf(c, coins.length); c.x = h.x; c.y = h.y; });
+window.__coins = { P, S, coins: () => coins, collect, loadSettings, pane };
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
