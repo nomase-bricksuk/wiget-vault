@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en" data-theme="tint">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Office hours — mono (tinted)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Saira:wdth,wght@50..125,100..400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    /* =========================================================
+       Office hours — mono: a black device card, thin clock digits, colour-split pills
+       ========================================================= */
+    :root {
+      --page: #f2f1ee;
+      --card: #0b0b0b;
+      --text: #f4f2ee;
+      --dim: #8d8b86;
+      --orange: #ff5a14;
+      --ink: #0b0b0b;
+      --digits: 'Saira', system-ui, sans-serif;
+      --mono: 'Space Mono', ui-monospace, monospace;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { background: var(--page); }
+    body { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: center; gap: 16px; padding: 40px 16px; background: var(--page); color: var(--text); font-family: var(--mono); -webkit-font-smoothing: antialiased; }
+    button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .note { width: min(100%, 560px); color: #85827b; font: 400 11.5px/1.6 var(--mono); }
+
+    .oh {
+      width: min(100%, 560px); padding: 40px 40px 34px; border-radius: 48px; background: var(--card);
+      box-shadow: 0 40px 70px -40px rgba(0, 0, 0, .55), 0 2px 6px rgba(0, 0, 0, .08);
+    }
+
+    /* Title + clock */
+    .title { font: 700 21px/1 var(--mono); letter-spacing: .01em; }
+    .clock { display: flex; align-items: flex-start; margin-top: 14px; font-family: var(--digits); font-stretch: 62%; font-weight: 100; font-variant-numeric: tabular-nums; line-height: .9; }
+    .clock__hm { font-size: 104px; letter-spacing: .02em; }
+    .clock__colon { display: inline-block; width: .32em; text-align: center; animation: blink 2s steps(1) infinite; }
+    @keyframes blink { 50% { opacity: .25; } }
+    .clock__s { margin: 4px 0 0 14px; font-size: 34px; font-weight: 200; }
+
+    /* Status row */
+    .status { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 52px; }
+    .status__nm { display: inline-flex; align-items: center; gap: 10px; font: 400 15px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+    .status__nm i { width: 7px; height: 7px; border-radius: 50%; background: var(--orange); animation: live 1.6s ease-in-out infinite; }
+    @keyframes live { 50% { opacity: .2; } }
+    .pill { padding: 5px 10px 4px; border-radius: 6px; background: var(--orange); color: var(--ink); font: 700 14px/1 var(--mono); letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+
+    /* Split of today: one rounded pill per status, sized by its share */
+    :root { --active: #26d07c; --focus: #7f52ee; --meeting: #f76a6a; --away: #f4920f; }
+    .split { display: flex; gap: 8px; margin-top: 18px; }
+    .seg { flex: var(--w) 1 0; min-width: 52px; height: 44px; display: flex; align-items: center; padding: 0 14px; border-radius: 999px; background: var(--c);
+      color: #fff; font: 700 14px/1 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: default;
+      transition: flex-grow .8s var(--ease), opacity .25s; animation: grow .8s var(--ease) both; animation-delay: var(--d); transform-origin: left; }
+    @keyframes grow { from { opacity: 0; transform: scaleX(.4); } }
+    .split:hover .seg:not(:hover), .split:has(.seg:focus-visible) .seg:not(:focus-visible) { opacity: .45; }
+    .split .seg.is-picked { opacity: 1; }
+    .seg:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+    .seg { cursor: pointer; }
+    .split:has(.is-picked) .seg:not(.is-picked) { opacity: .45; }
+    .seg.is-picked { transform: translateY(-2px); }
+    .status__nm small { margin-left: 4px; color: var(--dim); font-size: 11px; }
+    .seg.is-now { box-shadow: 0 0 0 2px var(--card-solid, var(--card)), 0 0 0 3.5px var(--c); }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; color: var(--dim); font: 400 12px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+    .legend span { display: inline-flex; align-items: center; gap: 7px; }
+    .legend i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+    .legend b { color: var(--text); font-weight: 400; }
+    .empty { height: 44px; display: grid; place-items: center; flex: 1; border-radius: 999px; box-shadow: 0 0 0 1px var(--rule, #333) inset; color: var(--dim); font: 400 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    .pill { transition: background-color .4s; }
+
+    /* Footer */
+    .foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-top: 40px; }
+    .in { display: flex; align-items: flex-end; gap: 12px; }
+    .in b { font: 100 50px/.9 var(--digits); font-stretch: 62%; font-variant-numeric: tabular-nums; letter-spacing: .03em; }
+    .in span { white-space: nowrap; margin-bottom: 4px; color: var(--dim); font: 400 11px/1.35 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    .arrows { display: flex; gap: 10px; }
+    .arrow { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; box-shadow: 0 0 0 1.5px var(--text) inset; transition: background-color .2s, color .2s, transform .2s var(--ease); }
+    .arrow svg { width: 18px; height: 18px; }
+    .arrow:hover { background: var(--text); color: var(--card-solid, var(--card)); }
+    .arrow:active { transform: scale(.94); }
+    .arrow:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
+    .arrow { position: relative; }
+    .arrow[aria-pressed="true"] { background: var(--orange); color: var(--ink); box-shadow: none; }
+    .arrow__badge { position: absolute; top: -6px; right: -8px; padding: 2px 5px; border-radius: 6px; background: var(--text); color: var(--card-solid, var(--card)); font: 700 9.5px/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+    .arrow.is-ringing svg { animation: ring .5s ease-in-out infinite; }
+    @keyframes ring { 25% { transform: rotate(14deg); } 75% { transform: rotate(-14deg); } }
+
+    .swap { animation: swap .45s var(--ease); }
+    @keyframes swap { from { opacity: 0; transform: translateY(6px); } }
+
+    @media (max-width: 520px) {
+      .oh { padding: 28px 22px 24px; border-radius: 36px; }
+      .title { font-size: 17px; }
+      .clock__hm { font-size: 76px; }
+      .clock__s { font-size: 26px; margin-left: 10px; }
+      .status { margin-top: 34px; }
+      .split { gap: 5px; }
+      .seg { height: 38px; min-width: 44px; padding: 0 10px; font-size: 12px; }
+      .legend { gap: 8px 12px; font-size: 10.5px; }
+      .in b { font-size: 34px; }
+      .in { gap: 8px; min-width: 0; }
+      .in span { font-size: 9.5px; }
+      .foot { gap: 10px; }
+      .arrows { gap: 6px; flex: none; }
+      .arrow { width: 38px; height: 38px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .clock__colon, .status__nm i, .seg, .swap, .arrow.is-ringing svg { animation: none; } .seg { transition: none; } }
+
+    /* ---------- Light versions: <html data-theme="tint"> or <html data-theme="plain"> ---------- */
+    html[data-theme="tint"]  { --page: #ebe8e2; --card-solid: #f6f1ec; --text: #1d1d1b; --dim: #7a766e; --rule: rgba(29,29,27,.15); }
+    html[data-theme="plain"] { --page: #e6e3dc; --card-solid: #f8f5ee; --text: #1d1d1b; --dim: #7a766e; --rule: rgba(29,29,27,.15); }
+    html[data-theme] .oh { color: var(--text); box-shadow: 0 0 0 1px rgba(29, 29, 27, .06), 0 34px 60px -38px rgba(60, 50, 30, .35); }
+    html[data-theme="tint"] .oh { background: radial-gradient(120% 90% at 0% 0%, #fde9d9 0%, transparent 55%), radial-gradient(110% 90% at 100% 100%, #dfe6f4 0%, transparent 60%), linear-gradient(160deg, #f8efe6, #eef0f5); }
+    html[data-theme="plain"] .oh { position: relative; background: var(--card-solid); }
+    html[data-theme="plain"] .oh::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: .5; mix-blend-mode: multiply;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .4 0 0 0 0 .3 0 0 0 .08 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+    html[data-theme] .clock__hm, html[data-theme] .in b { font-weight: 200; }
+    html[data-theme] .arrow { box-shadow: 0 0 0 1.2px var(--text) inset; }
+    html[data-theme] .note { color: #85827b; }
+  </style>
+</head>
+<body>
+
+  <article class="oh" data-oh aria-label="Office hours">
+    <h1 class="title">Office hours</h1>
+    <p class="clock" aria-hidden="true"><span class="clock__hm" data-hm></span><sup class="clock__s" data-s></sup></p>
+    <p class="sr-only" data-time aria-live="off"></p>
+
+    <div class="status">
+      <p class="status__nm" data-status aria-live="polite"></p>
+      <p class="pill" data-total></p>
+    </div>
+
+    <div class="split" data-bar role="list" aria-label="Today by status"></div>
+    <p class="legend" data-legend aria-hidden="true"></p>
+
+    <div class="foot">
+      <div class="in"><b data-in></b><span data-in-lbl></span></div>
+      <div class="arrows">
+        <button class="arrow" type="button" data-alarm aria-pressed="false" aria-label="Remind me to take a break in 50 minutes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2.2 1.6M5 4.5 2.8 6.7M19 4.5l2.2 2.2"/></svg></button>
+        <button class="arrow" type="button" data-step="1" aria-label="Switch to the next status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></button>
+      </div>
+    </div>
+  </article>
+
+  <p class="note" data-note>↗ switches your current status; the alarm reminds you to take a break in 50 minutes. The pills are today’s split — click one to read its time; the top pill is today’s total in the current status. Stored in this browser.</p>
+
+  <script>
+  (() => {
+    const KEY = 'office-hours-mono:state';
+    const IDS = ['active', 'focus', 'meeting', 'away'];
+    const NAMES = { active: 'Active', focus: 'Focus', meeting: 'Meeting', away: 'Away' };
+    const pad = (n) => String(n).padStart(2, '0');
+    const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    const read = () => { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } };
+    const write = (v) => { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {} };
+    const q = (s) => document.querySelector(s);
+
+    // Today's sessions: { p: status, s: start ms, e: end ms | null (running) }
+    let st = read();
+    let sample = false;
+    if (!st || st.date !== dayKey()) {
+      // First visit today: a labelled sample morning so the bar has something to show.
+      const now = new Date(), at = (h, m) => new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m).getTime();
+      const plan = [['active', 9, 4], ['focus', 9, 30], ['meeting', 11, 0], ['active', 11, 45], ['away', 12, 30], ['focus', 13, 20], ['meeting', 15, 0], ['active', 15, 40]];
+      const sessions = [];
+      plan.forEach(([p, h, m], k) => {
+        const s = at(h, m), nx = plan[k + 1] ? at(plan[k + 1][1], plan[k + 1][2]) : null;
+        if (s > Date.now()) return;
+        sessions.push({ p, s, e: nx && nx <= Date.now() ? nx : null });
+      });
+      if (!sessions.length) sessions.push({ p: 'active', s: Date.now(), e: null });
+      st = { date: dayKey(), sessions, sample: true };
+      write(st);
+    }
+    sample = !!st.sample;
+
+    const current = () => st.sessions[st.sessions.length - 1];
+    function totals() {
+      const t = Object.fromEntries(IDS.map((id) => [id, 0])), now = Date.now();
+      st.sessions.forEach((x) => { t[x.p] += (x.e ?? now) - x.s; });
+      return t;
+    }
+    const hm = (ms) => { const m = Math.floor(ms / 60000); return `${Math.floor(m / 60)}H ${pad(m % 60)}M`; };
+
+    function setStatus(step) {
+      const cur = current(), i = IDS.indexOf(cur.p), next = IDS[(i + step + IDS.length) % IDS.length];
+      const now = Date.now();
+      cur.e = now;
+      st.sessions.push({ p: next, s: now, e: null });
+      st.sample = false; sample = false;
+      write(st);
+      render(true);
+    }
+
+    let lastSig = '', picked = null;
+    function render(animate = false) {
+      const now = new Date();
+      q('[data-hm]').innerHTML = `${pad(now.getHours())}<span class="clock__colon">:</span>${pad(now.getMinutes())}`;
+      q('[data-s]').textContent = pad(now.getSeconds());
+      q('[data-time]').textContent = now.toLocaleTimeString();
+
+      const t = totals(), all = IDS.reduce((a, id) => a + t[id], 0), cur = current().p;
+      const statusEl = q('[data-status]');
+      if (picked && !t[picked]) picked = null;
+      const show = picked || cur;
+      statusEl.innerHTML = `<i aria-hidden="true" style="background:var(--${show})"></i>${NAMES[show]}${picked && picked !== cur ? '<small>Today</small>' : ''}`;
+      statusEl.classList.toggle('is-picked', !!picked && picked !== cur);
+      q('[data-total]').textContent = hm(t[show]);
+      q('[data-total]').setAttribute('aria-label', `${hm(t[show]).toLowerCase()} in ${NAMES[show]} today`);
+
+      const pill = q('[data-total]');
+      pill.style.background = `var(--${show})`;
+      // Split: rebuild only when percentages or the current status change
+      const parts = IDS.filter((id) => t[id] > 0).map((id) => ({ id, pct: all ? (t[id] / all) * 100 : 0 }));
+      let rounded = parts.map((x) => Math.round(x.pct));
+      const drift = 100 - rounded.reduce((a, b) => a + b, 0);
+      if (rounded.length) rounded[rounded.indexOf(Math.max(...rounded))] += drift;     // shown % add up to 100
+      const label = (k) => (parts[k].pct < 1 ? '<1%' : `${Math.max(1, rounded[k])}%`);
+      const sig = `${cur}|${picked}|${parts.map((_, k) => label(k)).join(',')}`;
+      if (sig !== lastSig || animate) {
+        lastSig = sig;
+        const bar = q('[data-bar]');
+        if (!parts.length) bar.innerHTML = '<p class="empty">No hours yet</p>';
+        else if (!animate && bar.children.length === parts.length && [...bar.children].every((c, k) => c.dataset.id === parts[k].id)) {
+          [...bar.children].forEach((c, k) => { c.style.setProperty('--w', parts[k].pct.toFixed(2)); c.textContent = label(k); c.classList.toggle('is-now', parts[k].id === cur); c.classList.toggle('is-picked', parts[k].id === picked); c.setAttribute('aria-pressed', String(parts[k].id === picked));
+            c.title = `${NAMES[parts[k].id]} · ${hm(t[parts[k].id])}`; c.setAttribute('aria-label', `${NAMES[parts[k].id]}: ${label(k)}, ${hm(t[parts[k].id]).toLowerCase()}`); });
+        } else bar.innerHTML = parts.map((pt, k) => `<button type="button" class="seg${pt.id === cur ? ' is-now' : ''}${pt.id === picked ? ' is-picked' : ''}" data-id="${pt.id}" role="listitem" aria-pressed="${pt.id === picked}"
+            style="--c:var(--${pt.id});--w:${pt.pct.toFixed(2)};--d:${k * 80}ms" title="${NAMES[pt.id]} · ${hm(t[pt.id])}" aria-label="${NAMES[pt.id]}: ${label(k)}, ${hm(t[pt.id]).toLowerCase()}">${label(k)}</button>`).join('');
+        q('[data-legend]').innerHTML = parts.map((pt) => `<span style="--c:var(--${pt.id})"><i></i>${pt.id === cur ? `<b>${NAMES[pt.id]}</b>` : NAMES[pt.id]}</span>`).join('');
+        if (animate) { statusEl.classList.remove('swap'); void statusEl.offsetWidth; statusEl.classList.add('swap'); }
+      }
+      alarmTick();
+
+      const first = st.sessions[0];
+      const fin = new Date(first.s);
+      q('[data-in]').textContent = `${pad(fin.getHours())}:${pad(fin.getMinutes())}`;
+      q('[data-in-lbl]').innerHTML = `Clocked in<br>${hm(all)} today`;
+      q('[data-note]').textContent = `${sample ? 'Sample hours for today until you switch status. ' : ''}↗ switches your current status; the alarm reminds you to take a break in 50 minutes. The pills are today’s split — click one to read its time; the top pill is today’s total in the current status. Stored in this browser.`;
+    }
+
+    // Click a pill to read that status's time in the top row; click it again, or anywhere else, to go back.
+    q('[data-bar]').addEventListener('click', (e) => {
+      const b = e.target.closest('.seg'); if (!b) return;
+      e.stopPropagation();
+      picked = picked === b.dataset.id ? null : b.dataset.id;
+      render();
+    });
+    document.addEventListener('click', () => { if (picked) { picked = null; render(); } });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && picked) { picked = null; render(); } });
+    document.querySelectorAll('[data-step]').forEach((b) => b.addEventListener('click', () => setStatus(+b.dataset.step)));
+    // Break reminder: 50 minutes from when it's set; the button rings when it's time.
+    const AKEY = 'office-hours-mono:alarm', BREAK = 50 * 60000;
+    const alarmBtn = q('[data-alarm]');
+    let alarmAt = (() => { try { return +localStorage.getItem(AKEY) || 0; } catch { return 0; } })();
+    function alarmTick() {
+      if (!alarmBtn) return;
+      const on = alarmAt > 0, left = alarmAt - Date.now();
+      alarmBtn.setAttribute('aria-pressed', String(on));
+      alarmBtn.classList.toggle('is-ringing', on && left <= 0);
+      alarmBtn.querySelector('.arrow__badge')?.remove();
+      if (on) alarmBtn.insertAdjacentHTML('beforeend', `<span class="arrow__badge" aria-hidden="true">${left > 0 ? `${Math.ceil(left / 60000)}M` : 'NOW'}</span>`);
+      alarmBtn.setAttribute('aria-label', !on ? 'Remind me to take a break in 50 minutes' : left > 0 ? `Break reminder in ${Math.ceil(left / 60000)} minutes; press to cancel` : 'Time for a break; press to dismiss');
+    }
+    alarmBtn.addEventListener('click', () => {
+      alarmAt = alarmAt ? 0 : Date.now() + BREAK;
+      try { alarmAt ? localStorage.setItem(AKEY, String(alarmAt)) : localStorage.removeItem(AKEY); } catch {}
+      alarmTick();
+    });
+    addEventListener('storage', (e) => { if (e.key === KEY) { st = read() || st; render(true); } });
+    render(true);
+    setInterval(render, 1000);
+  })();
+  </script>
+</body>
+</html>

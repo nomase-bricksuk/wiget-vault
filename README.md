@@ -41,6 +41,11 @@ The first twenty-one share the same design tokens (honey, night, ink and the war
 | `weather-mini.html`    | Weather mini      |
 | `weather-type.html`    | Weather type      |
 | `coin-sprint-widget.html`    | Coin Sprint     |
+| `office-hours-mono.html` | Office hours (mono) |
+| `office-hours-mono-tint.html` | Office hours (mono, tinted) |
+| `office-hours-mono-plain.html` | Office hours (mono, plain) |
+| `office-hours-mono-dial.html` | Office hours (mono, seconds dial) |
+| `office-hours-mono-dial-tint.html` | Office hours (mono, tinted, corner dial) |
 
 ---
 
@@ -958,3 +963,40 @@ A 3D coin with an icon in the middle that turns slowly
   - Copy settings or import them as JSON.
   - Save and load your own preset (kept in this browser only).
   - Reset everything.
+
+  ## Office hours (mono) — `office-hours-mono.html` (560 wide, about 500 tall)
+ 
+An office-hours tracker styled like a black bedside device: thin clock digits and one orange panel.
+ 
+- **Look:**
+  - a black card with Saira thin condensed digits and Space Mono labels;
+  - a single orange (#ff5a14) panel.
+- **Top:** the title **Office hours**, then a live clock (HH:MM with blinking colon, seconds raised).
+- **Status row:**
+  - the **current status** (Active, Focus, Meeting or Away) with a pulsing dot;
+  - an orange pill with today's total in that status, e.g. **3H 10M**.
+- **Split:**
+  - one rounded pill per status: Active green #26d07c, Focus purple #7f52ee, Meeting coral #f76a6a and Away orange #f4920f;
+  - each pill is sized by its share of today, with its percentage inside;
+  - shares under 1% read **<1%**, and the percentages always add up to 100%;
+  - the current status's pill has a ring, and a legend underneath names the colours;
+  - hovering a pill shows its time, and the status pill and dot take the current status's colour.
+- **Footer:**
+  - the clock-in time in thin digits, with the total clocked in today;
+  - **Alarm:** a break reminder 50 minutes ahead. A badge counts the minutes down, and the button rings at zero. Press it again to cancel.
+  - **↗:** switches to the next status, closing the running session and starting a new one.
+- **Data:**
+  - sessions are stored in this browser under `office-hours-mono:state`, and other open tabs stay in sync;
+  - on the first visit of the day it shows a labelled sample morning until you switch status.
+- **Versions:** the same widget in three looks.
+  - `office-hours-mono.html`: the black card.
+  - `office-hours-mono-tint.html`: a soft peach-to-blue gradient card.
+  - `office-hours-mono-plain.html`: a warm paper card with a light grain.
+  - The light versions use dark text and slightly heavier thin digits, and keep the same coloured pills.
+  - The look is set with `data-theme="tint"` or `"plain"` on `<html>`.
+  - All three share the same stored day, so they stay in sync.
+- **Dial version:** `office-hours-mono-dial.html` is the black card with the time tracker's seconds dial, small and faint, centred behind everything. It was rebuilt from the time-tracker description above.
+  - **Ticks:** 60 ticks, with every fifth one longer. They brighten slightly through the minute, and the current second's tick is a little brighter still.
+  - **Sweep dot:** a grey dot springs to each second and always goes the short way round at the minute wrap.
+  - The dial has no rings or colour, so it blends into the black.
+- **Tinted corner dial:** `office-hours-mono-dial-tint.html` is the tinted card with a 180px seconds dial in the top-right corner, inside the padding (130px on phones). Its ticks are tuned to stay faint on the light background.
